@@ -1,6 +1,6 @@
 # Reference: MuleSoft Estate Report — Input, DATA Contract, Metrics and Tabs
 
-> **Status:** this is the current reference for skill v3.3.0 (build_data.py v3.3.0, updated
+> **Status:** this is the current reference for skill v3.4.0 (build_data.py v3.4.0, updated
 > 2026-10-05). It replaces the original "build the HTML by hand" brief.
 >
 > **Sources of truth:** `scripts/build_data.py` (the transformation) and
@@ -18,18 +18,22 @@
 Anypoint network-graph export (.json)
         │
         ▼
-scripts/build_data.py ──► DATA object (JSON on stdout; reconciliation + benchmark on stderr)
-        │      ▲
-        │      └── data/ANA Industry Data Matrix - Golden Template.xlsx  (peer benchmark)
-        │          data/customer_ou_map.json                             (customer → OU)
-        ▼
-scripts/build_report.py ──► replaces `const DATA = /* DATA_PLACEHOLDER */ null;`
-        │                   in mulesoft_arch_template.html
+scripts/build_report.py ── 1. validates the export (WARNING/ERROR lines; --check stops here)
+        │                  2. runs build_data.py ──► DATA object
+        │                        ▲  (reconciliation + benchmark printed to stderr)
+        │                        └── data/ANA Industry Data Matrix - Golden Template.xlsx
+        │                            data/customer_ou_map.json
+        │                  3. replaces `const DATA = /* DATA_PLACEHOLDER */ null;`
+        │                     in mulesoft_arch_template.html
         ▼
 {masterOrgName}_Mule_Architecture.html   (single self-contained file, all JS/CSS inline)
 ```
 
 The template's rendering code is static. Only the DATA object differs between customers.
+
+**Platform independence:** standard library only, Python 3.8+. All files are read and written
+as UTF-8 with LF line endings, console output is ASCII, and output filenames are sanitised to
+`[A-Za-z0-9._-]`. The same input gives byte-identical HTML on Windows, macOS and Linux.
 
 ---
 
@@ -200,8 +204,15 @@ for APIs with more than 50 client apps.
   2. If that gives fewer than 5 peers, the whole OU.
   3. If still fewer than 5, all rows.
 - **Result:** the mean reuse rate, emitted as `reuseAnalysis.benchmarkAvg`. It's `null` if
-  pandas or openpyxl is missing or the matrix can't be read. In that case the template falls
-  back to 0.38.
+  the matrix is missing or can't be read. In that case the template falls back to 0.38.
+- **Reading the .xlsx:** `read_xlsx_sheet()` uses only the standard library (`zipfile` +
+  `xml.etree`), so no third-party packages are needed on any OS. It takes the first row as
+  the header and reads formula cells' cached values. Text in numeric columns counts as
+  missing. This mirrors `pandas.read_excel` + `to_numeric(errors='coerce')`, which v3.3.0
+  and earlier used. Means are summed in numpy's pairwise order (`_pairwise_sum`), so 4-dp
+  rounding is bit-identical. It was verified on the current matrix: the same 291 peer rows in
+  the same order, and 0 differences across 37,037 benchmark cases (every OU and OU pair ×
+  API counts 0–1000).
 
 ---
 

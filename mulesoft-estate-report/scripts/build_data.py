@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-build_data.py — mulesoft-estate-report skill, DATA object builder (v3.3.0)
+build_data.py — mulesoft-estate-report skill, DATA object builder (v3.4.0)
 
 Turns an Anypoint network-graph JSON export into the DATA object the template
 injects. Written as a bundled script (not hand-authored per run) so the edge
@@ -38,8 +38,13 @@ v3.3.0 (2026-10-05):
   - kpis.envs = distinct env names with apps (was distinct env types, max 2).
   - Input read as UTF-8 regardless of OS locale.
 
+v3.4.0 (2026-10-05):
+  - No third-party dependencies: the Industry Matrix .xlsx is read with the
+    standard library (read_xlsx_sheet). Verified identical to the previous
+    pandas implementation. Console messages are plain ASCII.
+
 Usage:
-    python build_data.py <input.json>
+    python3 build_data.py <input.json>
 
 Prints a human-readable reconciliation report to stderr and the DATA object as
 JSON to stdout. Normally invoked via build_report.py, which also injects DATA
@@ -436,8 +441,150 @@ def _resolve_ous(customer_name):
     return None
 
 
+_XLSX_NS = {
+    'm': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main',
+    'r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
+    'rel': 'http://schemas.openxmlformats.org/package/2006/relationships',
+}
+
+
+def _col_index(cell_ref):
+    """'AB12' -> 27 (0-based column index)."""
+    idx = 0
+    for ch in cell_ref:
+        if not ch.isalpha():
+            break
+        idx = idx * 26 + (ord(ch.upper()) - 64)
+    return idx - 1
+
+
+def read_xlsx_sheet(path, sheet_name):
+    """Read one worksheet of an .xlsx into a list of rows (lists of cell values).
+
+    Standard library only (zipfile + ElementTree), so the skill needs no
+    third-party packages on any OS. Values: float for numeric cells, str for
+    text/error cells, None for empty. Formula cells yield their cached value
+    (as Excel last saved it), matching pandas/openpyxl data_only behaviour.
+    """
+    import zipfile
+    import xml.etree.ElementTree as ET
+    ns = _XLSX_NS
+    with zipfile.ZipFile(path) as z:
+        wb = ET.fromstring(z.read('xl/workbook.xml'))
+        rid = None
+        for s in wb.iterfind('m:sheets/m:sheet', ns):
+            if s.get('name') == sheet_name:
+                rid = s.get(f'{{{ns["r"]}}}id')
+        if rid is None:
+            raise KeyError(f"worksheet '{sheet_name}' not found")
+        rels = ET.fromstring(z.read('xl/_rels/workbook.xml.rels'))
+        target = next(r.get('Target') for r in rels.iterfind('rel:Relationship', ns)
+                      if r.get('Id') == rid)
+        sheet_path = target.lstrip('/') if target.startswith('/') else 'xl/' + target
+
+        shared = []
+        if 'xl/sharedStrings.xml' in z.namelist():
+            for si in ET.fromstring(z.read('xl/sharedStrings.xml')).iterfind('m:si', ns):
+                # Plain <t>, or rich-text runs <r><t>; phonetic <rPh> runs are ignored.
+                parts = [t.text or '' for t in si.findall('m:t', ns)]
+                parts += [t.text or '' for t in si.findall('m:r/m:t', ns)]
+                shared.append(''.join(parts))
+
+        rows = []
+        for row in ET.fromstring(z.read(sheet_path)).iterfind('m:sheetData/m:row', ns):
+            vals = {}
+            for c in row.iterfind('m:c', ns):
+                t = c.get('t', 'n')
+                v = c.find('m:v', ns)
+                if t == 'inlineStr':
+                    val = ''.join(x.text or '' for x in c.iter(f'{{{ns["m"]}}}t'))
+                elif v is None or v.text is None:
+                    val = None
+                elif t == 's':
+                    val = shared[int(v.text)]
+                elif t in ('str', 'e'):
+                    val = v.text
+                elif t == 'b':
+                    val = v.text == '1'
+                else:
+                    val = float(v.text)
+                if val is not None and val != '':
+                    vals[_col_index(c.get('r'))] = val
+            if vals:
+                width = max(vals) + 1
+                rows.append([vals.get(i) for i in range(width)])
+    return rows
+
+
+def _to_number(v):
+    """Numeric value or None — mirrors pandas.to_numeric(errors='coerce')."""
+    if isinstance(v, bool) or v is None:
+        return None
+    if isinstance(v, float):
+        return v
+    try:
+        return float(str(v).strip())
+    except ValueError:
+        return None
+
+
+def _pairwise_sum(a, lo=0, n=None):
+    """Float sum in numpy's pairwise order, so means are bit-identical to the
+    pandas implementation this replaced (a naive or exact sum can round a
+    4-dp benchmark differently when the mean sits on a .xxxx5 boundary)."""
+    if n is None:
+        n = len(a)
+    if n < 8:
+        res = 0.0
+        for i in range(lo, lo + n):
+            res += a[i]
+        return res
+    if n <= 128:
+        r = a[lo:lo + 8]
+        i = 8
+        while i < n - (n % 8):
+            for j in range(8):
+                r[j] += a[lo + i + j]
+            i += 8
+        res = ((r[0] + r[1]) + (r[2] + r[3])) + ((r[4] + r[5]) + (r[6] + r[7]))
+        while i < n:
+            res += a[lo + i]
+            i += 1
+        return res
+    n2 = n // 2
+    n2 -= n2 % 8
+    return _pairwise_sum(a, lo, n2) + _pairwise_sum(a, lo + n2, n - n2)
+
+
+def load_matrix_peers():
+    """Return [(ou, apis_total, reuse_rate)] from the matrix's 'Data Tab'.
+
+    Rows with 0 / missing APIs or a non-numeric reuse rate are dropped.
+    Raises on a missing file or unexpected layout (caller reports it).
+    """
+    rows = read_xlsx_sheet(_MATRIX_PATH, 'Data Tab')
+    header = [str(h) if h is not None else '' for h in rows[0]]
+    want = {'OU': None, '# APIs Total': None, '% Reuse rate (over all APIs)': None}
+    for i, h in enumerate(header):
+        if h in want and want[h] is None:     # first occurrence, as pandas does
+            want[h] = i
+    missing = [k for k, v in want.items() if v is None]
+    if missing:
+        raise KeyError(f'matrix columns not found: {missing}')
+    i_ou, i_api, i_rate = want['OU'], want['# APIs Total'], want['% Reuse rate (over all APIs)']
+
+    peers = []
+    for r in rows[1:]:
+        cell = lambda i: r[i] if i < len(r) else None
+        apis = _to_number(cell(i_api)) or 0.0
+        rate = _to_number(cell(i_rate))
+        if apis > 0 and rate is not None:
+            peers.append((cell(i_ou), apis, rate))
+    return peers
+
+
 def compute_benchmark(customer_name, customer_api_count):
-    """Return peer-set average reuse rate (0–1) or None if unavailable.
+    """Return peer-set average reuse rate (0-1) or None if unavailable.
 
     Column used: '% Reuse rate (over all APIs)' (column M in the matrix).
     Peer selection:
@@ -446,65 +593,43 @@ def compute_benchmark(customer_name, customer_api_count):
       3. Exclude zero-data rows and non-numeric reuse rate values.
       4. If fewer than MIN_PEERS remain, broaden to full OU set (no API count filter).
     """
-    try:
-        import pandas as pd
-    except ImportError:
-        print('  benchmark: pandas not available — skipping', file=sys.stderr)
-        return None
-
     if not os.path.exists(_MATRIX_PATH):
-        print(f'  benchmark: matrix not found at {_MATRIX_PATH} — skipping', file=sys.stderr)
+        print(f'  benchmark: matrix not found at {_MATRIX_PATH} - skipping', file=sys.stderr)
         return None
-
     try:
-        df = pd.read_excel(_MATRIX_PATH, sheet_name='Data Tab')
+        df = load_matrix_peers()
     except Exception as e:
-        print(f'  benchmark: could not read matrix ({e}) — skipping', file=sys.stderr)
+        print(f'  benchmark: could not read matrix ({e}) - skipping', file=sys.stderr)
         return None
-
-    rate_col = '% Reuse rate (over all APIs)'
-    api_col  = '# APIs Total'
-    ou_col   = 'OU'
-
-    # Coerce rate column to numeric; '--' and non-numeric become NaN
-    df[rate_col] = pd.to_numeric(df[rate_col], errors='coerce')
-
-    # Drop rows with no data (zero APIs or no reuse rate)
-    df = df[(df[api_col].fillna(0) > 0) & df[rate_col].notna()]
 
     ous = _resolve_ous(customer_name)
 
     def _avg(subset):
-        if len(subset) == 0:
+        if not subset:
             return None
-        return round(float(subset[rate_col].mean()), 4)
+        return round(_pairwise_sum([p[2] for p in subset]) / len(subset), 4)
 
-    # Filter to matching OUs
-    if ous:
-        ou_mask = df[ou_col].isin(ous)
-        ou_df = df[ou_mask]
-    else:
-        ou_df = df
+    ou_df = [p for p in df if p[0] in ous] if ous else df
 
-    # Apply API count band
     lo = customer_api_count * _PEER_RATIO_LOW
     hi = customer_api_count * _PEER_RATIO_HIGH
-    peer_df = ou_df[(ou_df[api_col] >= lo) & (ou_df[api_col] <= hi)]
+    peer_df = [p for p in ou_df if lo <= p[1] <= hi]
 
     if len(peer_df) >= _MIN_PEERS:
         avg = _avg(peer_df)
-        print(f'  benchmark: {len(peer_df)} peers (OU+API band) → avg reuse rate {avg:.1%}', file=sys.stderr)
+        print(f'  benchmark: {len(peer_df)} peers (OU+API band) -> avg reuse rate {avg:.1%}', file=sys.stderr)
         return avg
 
-    # Broaden to full OU set
     if len(ou_df) >= _MIN_PEERS:
         avg = _avg(ou_df)
-        print(f'  benchmark: API band too narrow ({len(peer_df)} peers); broadened to full OU ({len(ou_df)} peers) → avg {avg:.1%}', file=sys.stderr)
+        print(f'  benchmark: API band too narrow ({len(peer_df)} peers); broadened to full OU ({len(ou_df)} peers) -> avg {avg:.1%}', file=sys.stderr)
         return avg
 
-    # Last resort: all rows
     avg = _avg(df)
-    print(f'  benchmark: OU set too small ({len(ou_df)} peers); using all industries ({len(df)} rows) → avg {avg:.1%}', file=sys.stderr)
+    if avg is None:
+        print('  benchmark: matrix has no usable rows - skipping', file=sys.stderr)
+        return None
+    print(f'  benchmark: OU set too small ({len(ou_df)} peers); using all industries ({len(df)} rows) -> avg {avg:.1%}', file=sys.stderr)
     return avg
 
 
@@ -646,13 +771,13 @@ def main():
     accounted = kept + dropped_unresolved + dropped_selfloop + collapsed_duplicate
 
     report = [
-        '── EDGE RECONCILIATION ──────────────────────────────',
+        '-- EDGE RECONCILIATION ------------------------------',
         f'  raw edges                : {raw_edge_count}',
         f'  kept (unique flows)      : {kept}',
         f'  collapsed duplicates     : {collapsed_duplicate}  (consolidation merged endpoints)',
         f'  self-loops dropped       : {dropped_selfloop}',
         f'  unresolved endpoints     : {dropped_unresolved}',
-        f'  ─────────────────────────────────────',
+        f'  -------------------------------------',
         f'  accounted for            : {accounted} / {raw_edge_count}',
         f'  internal http remapped   : {internal_remapped} (leaked-backend noise removed)',
         f'  backends (consolidated)  : {sum(1 for v in out_nodes.values() if v["kind"]=="backend")}',
@@ -662,7 +787,7 @@ def main():
     # INVARIANT: every raw edge must be accounted for. Fail loud otherwise.
     if accounted != raw_edge_count:
         sys.exit(f'RECONCILIATION FAILED: {accounted} != {raw_edge_count}. '
-                 'Edges were silently lost — aborting.')
+                 'Edges were silently lost - aborting.')
 
     # ── Assemble DATA ──────────────────────────────────────────────────────
     all_node_list = list(out_nodes.values())

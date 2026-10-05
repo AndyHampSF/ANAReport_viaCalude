@@ -1,0 +1,8 @@
+# Identical files on every OS: store and check out text with LF line endings,
+# regardless of each user's core.autocrlf setting.
+* text=auto eol=lf
+
+# Binary files — never touch.
+*.xlsx binary
+*.png  binary
+*.zip  binary

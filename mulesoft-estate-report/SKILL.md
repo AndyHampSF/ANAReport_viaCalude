@@ -42,19 +42,28 @@ works from any folder.
 > hand-written versions have silently dropped edges before. `build_data.py` enforces an
 > edge reconciliation invariant and aborts if any edge is lost. `build_report.py` does the
 > template injection so the 100–350 KB HTML is never re-typed. Same input → byte-identical
-> output.
+> output, on any OS.
 
 ---
 
 ## Prerequisites
 
-- **Python 3.** On Windows use `python` (`python3` may be a Microsoft Store stub). On
-  macOS/Linux use `python3`. Wherever this file says `python`, use whichever works.
-- **pandas + openpyxl.** These are needed for the peer benchmark only. Check with
-  `python -c "import pandas, openpyxl"`. If either is missing, tell the user and offer
-  `python -m pip install pandas openpyxl`. Without them the report still builds, but
-  `benchmarkAvg` is null and the Reuse tab falls back to a generic 38% "MuleSoft
-  customer benchmark". **This produces a different report**, so don't let it happen silently.
+**Python 3.8 or newer, and nothing else.** The scripts use only the standard library (the
+Industry Matrix .xlsx is read with `zipfile` + `xml`), so there's nothing to `pip install`.
+They behave identically on Windows, macOS and Linux and write byte-identical output (UTF-8,
+LF line endings).
+
+**Finding Python is your job, not the user's.** Don't ask the user which OS they're on. Try
+these in order and use the first that prints `Python 3.8` or newer:
+
+1. `python3 --version`
+2. `python --version`
+3. `py -3 --version` (Windows launcher)
+
+On Windows, `python3` can be a Microsoft Store shortcut that prints nothing or opens the
+Store; if so, move on to the next one. Call the working command `PY` below. If none works,
+tell the user Python 3 needs installing (from python.org, or via their OS package manager)
+and stop.
 
 ---
 
@@ -67,42 +76,39 @@ The user provides a path to an Anypoint network-graph export, usually named
 network-graph JSON file should I use?" Use the full export, **not** a `*_data.json` file;
 those are previous outputs of this skill.
 
-### 2. Validate the export (always, and especially for a new customer)
+### 2. Build the report (validation is built in)
 
-Quick checks, run with a short Python snippet. Don't print the whole file.
-
-- Top-level keys are `masterOrg, orgs, envs, apps, sandbox, production`.
-- `production.dependencies.nodes` / `.edges` are non-empty, and every edge's
-  `sourceId`/`targetId` exists in `nodes`.
-- `apps[]` is populated. If it's **empty** (seen with Runtime Fabric estates whose nodes have
-  `deploymentTarget: "rtf"`), warn the user: the Overview will show every production Mule
-  node as one running app in one environment, and the env chart and inventory will be empty.
-- `masterOrg.masterOrgName` matches a key in `data/customer_ou_map.json`
-  (case-insensitive substring). If not, see step 4.
-
-### 3. Run the report builder
-
-```bash
-python "<BASE_DIR>/scripts/build_report.py" "<input.json>"
+```
+PY "<BASE_DIR>/scripts/build_report.py" "<input.json>"
 ```
 
-- Output: `{masterOrgName}_Mule_Architecture.html` (spaces → underscores), written **next to
-  the input JSON**. Use `-o <folder>` to write elsewhere, and `--keep-data` to also save the
-  DATA JSON for audit.
-- Use real paths for input and output. Don't route files through `/tmp`; on Windows, Git
-  Bash's `/tmp` and Python's `/tmp` are different folders.
-- If it exits non-zero (`RECONCILIATION FAILED` or a build_data error), **stop and report**.
-  Never ship a report with silently-lost edges.
+Always quote both paths, because they often contain spaces. The command works the same in
+bash, zsh and PowerShell.
 
-### 4. Review the output and tell the user
+- **It validates the export first.** It checks the export structure, that the graph has
+  nodes, for edges pointing at missing nodes, for an empty `apps[]` (typical of Runtime
+  Fabric estates), whether the customer is in `customer_ou_map.json`, and that the matrix
+  is present. Problems print as `WARNING:` / `ERROR:` lines. To validate without building,
+  add `--check`.
+- **Output:** `{masterOrgName}_Mule_Architecture.html` (characters unsafe in filenames →
+  `_`), written next to the input JSON. Options: `-o <folder>` writes elsewhere,
+  `--keep-data` also saves the DATA JSON, and `--open` opens the report in the default
+  browser on any OS.
+- **Exit codes:** 0 = ok, 1 = build failed (e.g. `RECONCILIATION FAILED`), 2 = invalid input.
+  On a non-zero exit, **stop and report**. Nothing is written, and you must never ship a
+  report with silently-lost edges.
 
-`build_report.py` prints to stderr: the edge reconciliation, the benchmark line, and a
-summary (apps, APIs by layer, unclassified count, backends, flows, reuse metrics). Check:
+### 3. Review the output and tell the user
+
+`build_report.py` prints to stderr: the input check, the edge reconciliation, the benchmark
+line, and a summary (apps, APIs by layer, unclassified count, backends, flows, reuse
+metrics, warnings). Check:
 
 - **Reconciliation:** `accounted for` must equal `raw edges`.
 - **Benchmark:** the line should read `N peers (OU+API band)`. If it says
-  `OU set too small … using all industries`, or `NOT AVAILABLE`, the customer is missing from
-  `customer_ou_map.json` or pandas is missing. Fix it and re-run. To add a customer, add
+  `OU set too small ... using all industries`, the customer is missing from
+  `customer_ou_map.json`. If it says `NOT AVAILABLE`, the matrix is missing or unreadable.
+  Fix it and re-run. To add a customer, add
   `"<lowercase name fragment>": ["<OU category>"]` using an OU value that exists in the
   matrix's `OU` column, e.g. `"Technology, Media, Telecomm"`, `"Manufacturing, Auto, Energy"`
   or `"Consumer and Business Services"`. Confirm the category with the user.
@@ -114,11 +120,11 @@ summary (apps, APIs by layer, unclassified count, backends, flows, reuse metrics
   `PRODUCT_MAP`.
 
 Then tell the user:
-- the output file path, and that they can open it by double-clicking (Windows `start "" "<file>"`,
-  macOS `open "<file>"`)
+- the output file path, and that they can open it by double-clicking. If they want it
+  opened for them, re-run with `--open`, which works on any OS.
 - the customer name and key KPIs: total/running apps, environments, APIs by layer,
   backends, flows, and production reuse rate vs the benchmark
-- any warnings from step 2 or step 4
+- any warnings, in plain language
 
 ### Changing the script
 
@@ -171,7 +177,8 @@ Full definitions are in `prompt_mulesoft_architecture_html.md`. In brief:
 
 Copy the **entire** `mulesoft-estate-report/` folder, including `scripts/` (both files) and
 `data/` (the matrix and the OU map), to `~/.claude/skills/mulesoft-estate-report/` on the
-recipient's machine. Without `data/`, the benchmark silently falls back to the generic 38%.
-No path editing is needed. The recipient also needs Python 3 with pandas and openpyxl.
+recipient's machine (`~` = the user's home folder on any OS). Without `data/`, the
+benchmark falls back to the generic 38%, and `build_report.py` warns about it. No path
+editing or package installs are needed; the recipient only needs Python 3.8+.
 
 The ANA Industry Data Matrix contains peer customer data, so only share it internally.

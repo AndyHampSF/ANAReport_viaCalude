@@ -21,6 +21,9 @@ metrics are designed to match that process (see [Validation history](#validation
 .
 ├── README.md                         ← this file
 ├── .gitignore                        ← keeps customer data out
+├── .gitattributes                    ← LF line endings on every OS (identical checkouts)
+├── tools/
+│   └── regression_check.py           ← snapshot/compare outputs across all local exports
 └── mulesoft-estate-report/           ← the Claude Code skill (self-contained)
     ├── SKILL.md                      ← skill definition: the run procedure Claude follows
     ├── mulesoft_arch_template.html   ← report template (all CSS/JS inline); DATA is injected
@@ -50,29 +53,37 @@ Not in the repo, but present locally in the working folder
 
 ### Prerequisites
 
-- Python 3 (developed on 3.14, Windows; on Windows the command is `python`, not `python3`)
-- `pandas` and `openpyxl`, needed only for the peer benchmark. Without them the script
-  skips the benchmark and still builds the rest of the report.
+**Python 3.8 or newer. Nothing else.** There are no packages to install. The Industry
+Matrix spreadsheet is read with Python's standard library. It works the same on Windows,
+macOS and Linux.
 
-```bash
-python -m pip install pandas openpyxl
-```
+The Python command differs by machine: `python3` (macOS/Linux, and often Windows), `python`
+(Windows), or `py -3` (Windows launcher). Use whichever prints a 3.x version. When Claude
+runs the skill, it works this out itself.
 
 ### Generate a report (one command)
 
 ```bash
-python mulesoft-estate-report/scripts/build_report.py "<export>.json"
+python3 mulesoft-estate-report/scripts/build_report.py "<export>.json"
 ```
 
-This writes `{masterOrgName}_Mule_Architecture.html` (spaces → underscores) next to the
-input. Use `-o <folder>` to write elsewhere, and `--keep-data` to also save the DATA JSON.
-It prints three things to stderr:
+This writes `{masterOrgName}_Mule_Architecture.html` next to the input. Characters that
+aren't safe in filenames become `_`. Options:
+- `-o <folder>` writes the report elsewhere.
+- `--keep-data` also saves the DATA JSON.
+- `--open` opens the report in your browser.
+- `--check` validates the export without building anything.
+
+It prints the following to stderr:
+- an **input check**: the export's structure, an empty `apps[]`, a customer missing from the
+  OU map, a missing matrix
 - the **edge reconciliation**: `accounted for` must equal `raw edges`. If any edge is lost,
   the script exits with `RECONCILIATION FAILED` and writes nothing.
 - the **benchmark** line
-- a **summary** of the key numbers, plus a warning if the export has no `apps[]`
+- a **summary** of the key numbers and any warnings
 
-Open the HTML by double-clicking it. It has no external dependencies.
+Exit codes: 0 ok, 1 build failed, 2 invalid input. Open the HTML by double-clicking it.
+It has no external dependencies.
 
 `build_report.py` runs `build_data.py` and injects its output into the template. You can
 run `build_data.py <export.json> > data.json` on its own to inspect the DATA object.
@@ -80,10 +91,9 @@ run `build_data.py <export.json> > data.json` on its own to inspect the DATA obj
 **Gotchas:**
 - The input is always the full `*-network_graphs-*.json` export, **not** the smaller
   `*_data.json` files (those are old script outputs).
-- On Windows, don't pass files through `/tmp`: Git Bash's `/tmp` and Windows Python's
-  `/tmp` are different folders.
-- If the benchmark line says `using all industries` or `NOT AVAILABLE`, the customer is
-  missing from `customer_ou_map.json`, or pandas/openpyxl isn't installed.
+- Quote paths: export filenames usually contain spaces.
+- If the benchmark line says `using all industries`, add the customer to
+  `customer_ou_map.json`.
 
 ### Using it as a Claude Code skill (optional)
 
@@ -93,8 +103,10 @@ report from <file>" triggers it. `SKILL.md` holds the procedure Claude follows: 
 run `build_report.py`, review, report. It is **not** currently installed as a skill; runs
 have been done from this folder.
 
-**Verified 2026-10-05:** running from a fresh clone, from an isolated copy of the skill
-folder, and from this working folder all produce byte-identical HTML for all four customers.
+**Cross-platform verification (2026-10-05):** the same four exports were run on Windows 11
+(Python 3.14) and on Ubuntu 22.04 under WSL (Python 3.10, no extra packages). Each run used a
+fresh git clone. Both produced byte-identical HTML. macOS uses the same code paths as Linux
+(POSIX, `python3`); it wasn't tested directly.
 
 ---
 
@@ -165,6 +177,31 @@ its `numberOfClientApplications`.
 ---
 
 ## Change log
+
+### 2026-10-05 (latest): v3.4.0, platform independence
+
+The goal: the skill behaves identically on Windows, macOS and Linux, and the person running
+it doesn't need to know which platform they're on.
+
+1. **No third-party packages.** pandas/openpyxl were replaced by a standard-library .xlsx
+   reader (`read_xlsx_sheet`). Before this change, Ubuntu (no pandas, no pip) silently
+   produced a report without the benchmark. Verified identical to pandas: the same 291 peer
+   rows in the same order, and 0 differences across 37,037 benchmark cases. Averages are summed
+   in numpy's pairwise order, because a plain sum gave 182 cases that rounded the last digit
+   differently on .xxxx5 boundaries.
+2. **Byte-identical output on every OS.** Files are read and written as UTF-8 with LF line
+   endings (Windows previously wrote CRLF). `.gitattributes` forces LF checkouts regardless of
+   `core.autocrlf`.
+3. **Validation built into `build_report.py`.** Use `--check` to validate only. Exit codes:
+   0/1/2. This replaces the ad-hoc shell snippets SKILL.md used to need.
+4. **`--open`** opens the report in the default browser on any OS. Output filenames are
+   sanitised to characters valid on every OS. Console messages are plain ASCII (Windows
+   showed `─` escapes or `?` before).
+5. **SKILL.md:** Claude finds a working Python itself (`python3` → `python` → `py -3`) and
+   never asks the user about their OS.
+6. **`tools/regression_check.py`** replaces the bash-only regression loop.
+
+No report content changed. All four customers' DATA is identical to v3.3.0.
 
 ### 2026-10-05 (later): v3.3.0, docs and one-command runner
 
@@ -249,41 +286,32 @@ which embeds `const DATA = {...}` with an `apps[]` list. It compared well: 205 a
 
 ## Onboarding a new customer: checklist
 
-1. **Validate the export shape** against an existing one: same top-level keys; `apps[]`
-   populated; node key set (CloudHub exports have `host`, RTF exports have
-   `deploymentTarget/appName/environmentId/organizationId`); no edges pointing at missing nodes.
-2. **Do a baseline run** and inspect `layerOther` (apps the layer rules didn't classify, which
-   may mean a new naming convention), the backend list (generic or wrong names, or a big
-   "Cloudhub API"/"Internal" backend, which means internal calls aren't being remapped), and
-   the benchmark line.
+1. **Validate the export:** `python3 mulesoft-estate-report/scripts/build_report.py "<export>.json" --check`.
+   This checks the structure, edges pointing at missing nodes, an empty `apps[]`, and whether
+   the customer is in the OU map and the matrix is present.
+2. **Do a baseline run** (without `--check`) and inspect:
+   - the "unclassified" count: apps the layer rules didn't classify, which may mean a new
+     naming convention
+   - the backend list: generic or wrong names, or a big "Cloudhub API" backend, which means
+     internal calls aren't being remapped
+   - the benchmark line
 3. **Add the customer to `customer_ou_map.json`** (substring match on `masterOrgName`), or the
    benchmark falls back to all industries.
 4. If you change the script, **run the regression check** below before regenerating anything.
 
 ## Regression check (run after any script change)
 
-Snapshot the current outputs for every local export, make the change, re-run, and diff:
-
 ```bash
-mkdir -p _regress
-for f in "JLR Global 360-network_graphs-17_08_2026_06_49_41.json:jlr" \
-         "SGN-network_graphs-20_04_2026_11_21_22.json:sgn" \
-         "Global Support-network_graphs-30_06_2026_10_35_02.json:informa" \
-         "TalkTalk.json:talktalk"; do
-  python mulesoft-estate-report/scripts/build_data.py "${f%%:*}" > "_regress/${f##*:}_new.json" 2>/dev/null
-done
-python - <<'EOF'
-import json
-for c in ('jlr','sgn','informa','talktalk'):
-    a=json.load(open(f'_regress/{c}_v4.json')); b=json.load(open(f'_regress/{c}_new.json'))
-    print(c, 'changed keys:', [k for k in a if a[k]!=b[k]],
-          'kpi diffs:', {k:(a['kpis'][k],b['kpis'][k]) for k in a['kpis'] if a['kpis'][k]!=b['kpis'][k]})
-EOF
+python3 tools/regression_check.py snapshot before     # before the change
+# ... make the change ...
+python3 tools/regression_check.py snapshot after
+python3 tools/regression_check.py compare before after
 ```
 
-`_regress/*_v4.json` are the outputs of the current committed script (v3.3.0, 2026-10-05).
-They only exist on the owner's machine. On a fresh clone, run the loop once *before*
-changing anything to create a baseline, and rename the outputs to `*_v4.json`.
+It runs `build_data.py` on every customer export in the repo root, found automatically,
+and reports for each customer either `identical` or exactly which DATA keys and KPIs
+changed. Snapshots go to `_regress/<label>/`, which git ignores because it holds customer
+data. On a fresh clone there's no baseline, so take one *before* changing anything.
 
 ---
 
@@ -314,13 +342,16 @@ changing anything to create a baseline, and rename the outputs to `*_v4.json`.
 
 ## Notes for Claude (continuing this project)
 
+- **Platform:** never assume an OS or ask the user about it. Find Python as SKILL.md describes,
+  keep the scripts standard-library only (no pip dependencies), and read/write files as
+  UTF-8 with LF line endings.
 - **Generate reports only with `scripts/build_report.py`.** Never hand-write the DATA
   transformation or the HTML, and don't edit the template's design. `SKILL.md` is the run
   procedure; `prompt_mulesoft_architecture_html.md` is the reference for the input format,
   DATA contract and metrics. Keep both in step with the code whenever the script or
   template changes.
 - **Before changing `build_data.py`:** explain the problem and the proposed fix to the user and
-  get agreement. Then snapshot, change, run the regression check across *all* local exports,
+  get agreement. Then snapshot, change, and run `tools/regression_check.py` across *all* local exports,
   and report exactly which numbers moved for which customer. Fixes for one customer have
   changed others before (e.g. the hostname-suffix fix changed JLR and Informa).
 - **After a script change**, ask before regenerating other customers' reports. Back up the
