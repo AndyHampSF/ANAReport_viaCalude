@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MuleSoft Architecture</title>
+<style>
+:root{
+  --navy:#052D60; --teal:#0BA49B; --indigo:#5E66F9;
+  --band:#EFF8FF; --text:#464D55; --title:#052D60;
+  --badge-bg:#F1F1F1; --badge-text:#002196; --mule:#00A0DF;
+  --line:#D8E3F0; --ink:#1B2733; --muted:#7B8794;
+  --card:#FFFFFF; --bg:#F4F7FB;
+  --exp:var(--navy); --proc:var(--teal); --sys:var(--indigo);
+  --shadow:0 6px 18px rgba(5,45,96,.10),0 1px 3px rgba(5,45,96,.08);
+  --shadow-sm:0 2px 6px rgba(5,45,96,.10);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:"Salesforce Sans","Helvetica Neue",Arial,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  color:var(--text); background:var(--bg); -webkit-font-smoothing:antialiased; line-height:1.45;
+}
+a{color:var(--badge-text);text-decoration:none}
+
+/* ── Header ─────────────────────────────────────────── */
+header{
+  background:linear-gradient(120deg,#052D60 0%,#0A3E7E 55%,#0BA49B 160%);
+  color:#fff; padding:26px 40px 0; position:relative; overflow:hidden;
+}
+header::after{content:"";position:absolute;right:-80px;top:-60px;width:340px;height:340px;
+  background:radial-gradient(circle,rgba(94,102,249,.35),transparent 70%);pointer-events:none}
+.h-top{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;position:relative;z-index:1}
+.h-brand{display:flex;align-items:center;gap:14px}
+.h-logo{width:46px;height:46px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 14px rgba(0,160,223,.45);flex:0 0 auto;padding:6px}
+.h-logo img{width:100%;height:100%;object-fit:contain;display:block}
+h1{font-size:22px;margin:0;font-weight:700;letter-spacing:.2px}
+.h-sub{font-size:13px;opacity:.85;margin-top:2px;font-weight:400}
+.h-meta{text-align:right;font-size:12px;opacity:.82;line-height:1.7}
+.h-meta b{color:#fff;font-weight:600}
+.pill{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);
+  padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;margin-left:6px}
+
+/* ── Tabs ───────────────────────────────────────────── */
+nav.tabs{display:flex;gap:2px;margin-top:22px;position:relative;z-index:1;flex-wrap:wrap}
+nav.tabs button{
+  background:transparent;border:0;color:rgba(255,255,255,.72);font:inherit;font-size:13.5px;font-weight:600;
+  padding:12px 18px;cursor:pointer;border-radius:10px 10px 0 0;display:flex;align-items:center;gap:8px;transition:.15s;
+}
+nav.tabs button .tico{width:16px;height:16px;opacity:.8}
+nav.tabs button:hover{color:#fff;background:rgba(255,255,255,.08)}
+nav.tabs button.active{background:var(--bg);color:var(--title)}
+nav.tabs button.active .tico{opacity:1}
+
+/* ── Layout ─────────────────────────────────────────── */
+main{padding:28px 40px 60px;max-width:1400px;margin:0 auto}
+.panel{display:none;animation:fade .25s ease}
+.panel.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+h2.sec{font-size:17px;color:var(--title);margin:0 0 4px;font-weight:700}
+.sec-desc{font-size:13px;color:var(--muted);margin:0 0 18px;max-width:820px}
+.block{margin-bottom:34px}
+
+/* ── KPI cards ──────────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:26px}
+.kpi{background:var(--card);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.kpi .num{font-size:30px;font-weight:800;color:var(--title);line-height:1}
+.kpi .lbl{font-size:12px;color:var(--muted);margin-top:6px;font-weight:600;letter-spacing:.2px}
+.kpi .ic{position:absolute;right:12px;top:12px;width:22px;height:22px;opacity:.28}
+.kpi .num small{font-size:15px;font-weight:700;color:var(--muted)}
+
+.cols{display:grid;grid-template-columns:1.3fr 1fr;gap:24px}
+@media(max-width:900px){.cols{grid-template-columns:1fr}}
+.card{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:20px 22px}
+.card h3{margin:0 0 14px;font-size:14px;color:var(--title);font-weight:700;display:flex;align-items:center;gap:8px}
+.card h3 svg{width:17px;height:17px}
+
+/* env bars */
+.envbar{margin-bottom:14px}
+.envbar .top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px}
+.envbar .top .nm{font-weight:600;color:var(--ink)}
+.envbar .top .nm .tag{font-size:10px;font-weight:700;padding:1px 7px;border-radius:6px;margin-left:7px;text-transform:uppercase;letter-spacing:.4px}
+.tag.prod{background:#E7F6EF;color:#0B7A4B}
+.tag.sandbox{background:#EEF0FF;color:#4A52D6}
+.envbar .top .ct{color:var(--muted);font-weight:600}
+.track{height:10px;border-radius:6px;background:#EDF1F6;overflow:hidden;display:flex}
+.track .run{background:linear-gradient(90deg,#0BA49B,#12C2B6)}
+.track .stop{background:#E6A23C}
+.legend{display:flex;gap:16px;font-size:11.5px;color:var(--muted);margin-top:10px}
+.legend span{display:flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+
+/* domain chips */
+.chips{display:flex;flex-wrap:wrap;gap:9px}
+.chip{background:var(--band);border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:12.5px;color:var(--ink);
+  display:flex;align-items:center;gap:8px;font-weight:600}
+.chip b{color:var(--indigo);font-weight:800}
+.lgroup{display:flex;flex-wrap:wrap;gap:8px}
+.lchip{font-size:12px;padding:5px 11px;border-radius:8px;color:#fff;font-weight:700}
+
+/* ── Architecture swimlanes ─────────────────────────── */
+.arch{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:22px 24px 26px}
+.tier-row{display:flex;justify-content:center;gap:22px;flex-wrap:wrap;margin:6px 0 14px}
+.node-ico{display:flex;flex-direction:column;align-items:center;gap:6px;width:104px}
+.node-ico .disc{width:52px;height:52px;border-radius:14px;background:#fff;box-shadow:var(--shadow-sm);
+  display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
+.node-ico .disc svg{width:30px;height:30px}
+.node-ico .disc img{width:32px;height:32px;object-fit:contain}
+.node-ico .cap{font-size:11px;text-align:center;color:var(--ink);font-weight:600;line-height:1.25}
+.conn{height:16px;position:relative}
+.conn::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--line);transform:translateX(-50%)}
+
+.lane{display:flex;align-items:stretch;gap:0;margin-bottom:10px;border-radius:14px;overflow:hidden;box-shadow:var(--shadow-sm)}
+.lane .side{flex:0 0 116px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;
+  text-align:center;padding:10px;line-height:1.25}
+.lane .side small{display:block;font-size:10.5px;font-weight:600;opacity:.85;margin-top:3px}
+.lane.experience .side{background:var(--exp)}
+.lane.process .side{background:var(--proc)}
+.lane.system .side{background:var(--sys)}
+.lane .band{flex:1;background:var(--band);padding:14px;display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(224px,1fr));gap:10px;align-content:start;align-items:stretch}
+.api{background:#fff;border-radius:9px;box-shadow:var(--shadow-sm);padding:9px 12px 9px 9px;display:flex;align-items:center;gap:9px;
+  min-width:0;cursor:default;transition:.14s;border:1px solid transparent;position:relative}
+.api:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(5,45,96,.16);border-color:var(--line)}
+.api .mi{width:30px;height:30px;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
+.api .mi img{width:28px;height:28px;object-fit:contain;display:block}
+.api .txt{min-width:0;display:flex;flex-direction:column;justify-content:center}
+.api .nm{font-size:11.5px;font-weight:600;color:var(--ink);line-height:1.22;word-break:break-word}
+.api .badge{position:absolute;top:-7px;right:-7px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--navy);
+  color:#fff;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm)}
+.api .dtag{font-size:9px;color:#fff;background:var(--teal);padding:1px 6px;border-radius:5px;font-weight:700;margin-top:3px;display:inline-block}
+.archnote{font-size:11.5px;color:var(--muted);margin-top:12px;display:flex;gap:20px;flex-wrap:wrap}
+.archnote span{display:flex;align-items:center;gap:7px}
+
+/* ── Flows graph (SVG) ──────────────────────────────── */
+.graph-wrap{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:18px 10px 10px;overflow:hidden}
+.graph-controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:0 14px 12px;font-size:12px;color:var(--muted)}
+.graph-controls .col-key{display:flex;gap:14px;flex-wrap:wrap}
+.graph-controls .col-key span{display:flex;align-items:center;gap:6px;font-weight:600}
+.flow-filters{display:flex;gap:6px;flex-wrap:wrap}
+.filt{background:var(--band);border:1px solid var(--line);border-radius:7px;padding:4px 11px;font:inherit;font-size:11.5px;font-weight:600;color:var(--ink);cursor:pointer;transition:.12s}
+.filt:hover{background:#E3EAF5}
+.filt.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+#flowSearch{padding:5px 10px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:12px;min-width:160px;background:#fff}
+.graph-scroll{overflow:auto;max-height:720px;border-radius:0 0 8px 8px}
+#flowsvg{display:block}
+#flowsvg text{font-family:inherit}
+.gnode rect,.gnode circle{transition:.15s}
+.gnode .glabel{font-size:10.5px;fill:var(--ink);font-weight:600;pointer-events:none}
+.gedge{fill:none;stroke:#C4D2E4;stroke-width:1.3;transition:.15s;opacity:.55}
+svg.dim .gedge{opacity:.06}
+svg.dim .gnode{opacity:.18}
+svg.dim .gnode.hl{opacity:1}
+svg.dim .gedge.hl{opacity:.95;stroke-width:2.4}
+.gnode{cursor:pointer;opacity:1;transition:.15s}
+.gnode .gcard{fill:#fff;stroke:var(--line);stroke-width:1}
+.flowtip{position:fixed;pointer-events:none;background:var(--navy);color:#fff;padding:8px 11px;border-radius:8px;
+  font-size:11.5px;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;transition:.1s;z-index:99;max-width:240px;line-height:1.4}
+.flowtip b{color:#7FE9DF}
+
+/* ── Inventory table ────────────────────────────────── */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.toolbar input[type=search]{flex:1;min-width:200px;padding:9px 13px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:13px;background:#fff}
+.toolbar select{padding:9px 11px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:13px;background:#fff;color:var(--ink)}
+.toolbar .count{font-size:12px;color:var(--muted);font-weight:600;margin-left:auto}
+.tbl-wrap{background:var(--card);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead th{background:#F0F5FB;color:var(--title);text-align:left;padding:11px 14px;font-weight:700;font-size:11.5px;
+  text-transform:uppercase;letter-spacing:.4px;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:1px solid var(--line)}
+thead th:hover{background:#E7F0FA}
+tbody td{padding:9px 14px;border-bottom:1px solid #EEF2F7;color:var(--ink)}
+tbody tr:hover{background:#F7FAFE}
+.lpill{font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.3px;color:#fff}
+.lpill.experience{background:var(--exp)} .lpill.process{background:var(--proc)}
+.lpill.system{background:var(--sys)} .lpill.other{background:#9AA5B1}
+.st{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.st .dot{width:8px;height:8px;border-radius:50%}
+.st.RUNNING .dot{background:#12B886} .st.RUNNING{color:#0B7A4B}
+.st.STARTED .dot{background:#12B886} .st.STARTED{color:#0B7A4B}
+.st.NOT_RUNNING .dot{background:#E6A23C} .st.NOT_RUNNING{color:#B9770E}
+.st.UNDEPLOYED .dot{background:#ADB5BD} .st.UNDEPLOYED{color:#6C757D}
+.st.SCALING .dot{background:#12B886} .st.SCALING{color:#0B7A4B}
+.etag{font-size:10px;font-weight:700;padding:1px 7px;border-radius:6px}
+
+/* ── Backend cards ──────────────────────────────────── */
+.sys-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:14px}
+.sys{background:var(--card);border-radius:13px;box-shadow:var(--shadow);padding:15px 16px;display:flex;gap:13px;align-items:flex-start}
+.sys .ic{width:44px;height:44px;border-radius:11px;background:var(--band);display:flex;align-items:center;justify-content:center;flex:0 0 auto;border:1px solid var(--line)}
+.sys .ic svg{width:26px;height:26px}
+.sys .ic img{width:28px;height:28px;object-fit:contain}
+.sys .nm{font-size:13.5px;font-weight:700;color:var(--title);line-height:1.2}
+.sys .cat{font-size:11px;color:var(--muted);margin-top:2px;font-weight:600}
+.sys .conns{font-size:11px;color:var(--indigo);margin-top:7px;font-weight:700}
+
+/* ── Business Groups ────────────────────────────────── */
+.bg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:24px}
+.bg-card{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:18px 20px}
+.bg-card .bg-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.bg-card .bg-name{font-size:13.5px;font-weight:700;color:var(--title);line-height:1.2;max-width:160px}
+.bg-card .bg-pills{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.bg-pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;text-transform:uppercase;letter-spacing:.3px}
+.bg-pill.prod{background:#E7F6EF;color:#0B7A4B}
+.bg-pill.sandbox{background:#EEF0FF;color:#4A52D6}
+.bg-stat{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;color:var(--ink)}
+.bg-stat .bgs-lbl{color:var(--muted);font-weight:600}
+.bg-stat .bgs-val{font-weight:700}
+.bg-health{height:8px;border-radius:5px;background:#EDF1F6;overflow:hidden;margin-bottom:12px}
+.bg-health .bgh-run{height:100%;background:linear-gradient(90deg,#0BA49B,#12C2B6);border-radius:5px}
+.bg-layers{height:8px;border-radius:5px;overflow:hidden;display:flex;margin-top:4px}
+.bg-layers .bgl-exp{background:var(--exp)}
+.bg-layers .bgl-proc{background:var(--proc)}
+.bg-layers .bgl-sys{background:var(--sys)}
+.bg-layers .bgl-other{background:#C0C8D2}
+.bg-layer-legend{display:flex;gap:10px;flex-wrap:wrap;font-size:10.5px;color:var(--muted);margin-top:6px;font-weight:600}
+.bg-layer-legend span{display:flex;align-items:center;gap:4px}
+
+/* ── Insights ───────────────────────────────────────── */
+.insight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:26px}
+.ins{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:20px}
+.ins h3{margin:0 0 6px;font-size:14px;color:var(--title);font-weight:700;display:flex;gap:9px;align-items:center}
+.ins h3 .ib{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.ins h3 .ib svg{width:18px;height:18px}
+.ins p{font-size:12.5px;color:var(--text);margin:8px 0 0}
+.ins .big{font-size:26px;font-weight:800;color:var(--title)}
+.reuse-row{display:flex;align-items:center;gap:10px;margin:9px 0;font-size:12.5px}
+.reuse-row .rn{flex:1;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reuse-row .rbar{height:8px;border-radius:5px;background:#EDF1F6;flex:0 0 130px;overflow:hidden}
+.reuse-row .rbar i{display:block;height:100%;background:linear-gradient(90deg,var(--indigo),#8A90FF)}
+.reuse-row .rv{font-weight:800;color:var(--indigo);width:26px;text-align:right}
+.rec{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid #EEF2F7}
+.rec:last-child{border-bottom:0}
+.rec .rk{width:26px;height:26px;border-radius:7px;background:var(--band);flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:var(--indigo);font-weight:800;font-size:13px}
+.rec .rt{font-size:12.5px} .rec .rt b{color:var(--title)}
+footer{text-align:center;font-size:11px;color:var(--muted);padding:24px;border-top:1px solid var(--line);margin-top:20px}
+.clientlist{display:flex;flex-direction:column;gap:8px}
+.clientlist .ca{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:600;color:var(--ink);background:var(--band);padding:8px 12px;border-radius:8px}
+.clientlist .ca svg{width:15px;height:15px;color:var(--indigo);flex:0 0 auto}
+</style>
+</head>
+<body>
+<header>
+  <div class="h-top">
+    <div class="h-brand">
+      <div class="h-logo"><img src="data:image/png;base64,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" alt="MuleSoft"></div>
+      <div>
+        <h1 id="h-title"></h1>
+        <div class="h-sub">API-Led Integration Architecture · Anypoint Platform network-graph analysis</div>
+      </div>
+    </div>
+    <div class="h-meta" id="h-meta"></div>
+  </div>
+  <nav class="tabs" id="tabs"></nav>
+</header>
+<main id="main"></main>
+<div class="flowtip" id="flowtip"></div>
+<footer id="footer"></footer>
+<script>
+/* ─── CUSTOMER DATA — replace this block each run ─────────────────────────
+   Only the DATA object changes per customer. All rendering code is static.
+   Steps 1-8 from the prompt produce this object; paste it here verbatim.
+   ───────────────────────────────────────────────────────────────────────── */
+const DATA = /* DATA_PLACEHOLDER */ null;
+
+/* ─── STATIC: icon library ──────────────────────────────────────────────── */
+const MULE_SVG = '<img src="data:image/png;base64,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" style="width:100%;height:100%;object-fit:contain;display:block">';
+const IC = {
+  mule: MULE_SVG,
+  salesforce: `<svg viewBox="0 0 24 24"><path d="M14.3 6.2a3.5 3.5 0 016.1 1.9 3.1 3.1 0 01-.9 6.1 2.9 2.9 0 01-3.6 1.4 3.4 3.4 0 01-6 .3 3.9 3.9 0 01-5.2-1.8A3.5 3.5 0 015.4 8a3.6 3.6 0 016.2-2 3.5 3.5 0 012.7.2z" fill="#00A1E0"/></svg>`,
+  okta: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#007DC1" stroke-width="3.2"/></svg>`,
+  peoplesoft: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#C74634" stroke-width="3.4"/></svg>`,
+  oracle: `<svg viewBox="0 0 24 24"><rect x="3" y="7.5" width="18" height="9" rx="4.5" fill="none" stroke="#C74634" stroke-width="3"/></svg>`,
+  sharepoint: `<svg viewBox="0 0 24 24"><circle cx="9.5" cy="8.5" r="5" fill="#036C70"/><circle cx="15.5" cy="14" r="4.3" fill="#1A9BA1"/><circle cx="11" cy="18" r="3.2" fill="#37C6D0"/></svg>`,
+  azure: `<svg viewBox="0 0 24 24"><path d="M9 4l-6 15h4l1.5-4 3.5 3 2-2L9 4z" fill="#0078D4"/><path d="M11 4l4 15h6L11 4z" fill="#5EA0EF"/></svg>`,
+  outlook: `<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" fill="#0078D4"/><path d="M4 7l8 5 8-5" stroke="#fff" stroke-width="1.6" fill="none"/></svg>`,
+  sftp: `<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.6" fill="#5E6B7B"/><rect x="3" y="13" width="18" height="6" rx="1.6" fill="#8895A7"/><circle cx="7" cy="7" r="1.2" fill="#fff"/><circle cx="7" cy="16" r="1.2" fill="#fff"/></svg>`,
+  smb: `<svg viewBox="0 0 24 24"><path d="M4 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v7a2 2 0 01-2 2H6a2 2 0 01-2-2V7z" fill="#F0A93B"/></svg>`,
+  crypto: `<svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2" fill="#3B4A5A"/><path d="M8 10V8a4 4 0 018 0v2" stroke="#3B4A5A" stroke-width="2" fill="none"/><circle cx="12" cy="15" r="1.6" fill="#fff"/></svg>`,
+  ai: `<svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="11" rx="3" fill="#5E66F9"/><circle cx="9.5" cy="12.5" r="1.4" fill="#fff"/><circle cx="14.5" cy="12.5" r="1.4" fill="#fff"/><path d="M12 4v3M8 18v2M16 18v2" stroke="#5E66F9" stroke-width="2" stroke-linecap="round"/></svg>`,
+  oanda: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#1F9E5A" stroke-width="2"/><path d="M12 7v10M9.5 9.2a2.5 2.5 0 015 .3c0 3-5 1.5-5 4.5a2.5 2.5 0 005 .3" stroke="#1F9E5A" stroke-width="1.7" fill="none"/></svg>`,
+  gateway: `<svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z" fill="#0A3E7E"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  mulesoft: MULE_SVG,
+  timesheet: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#6B4FBB" stroke-width="2"/><path d="M12 8v4.3l3 1.8" stroke="#6B4FBB" stroke-width="2" stroke-linecap="round" fill="none"/></svg>`,
+  web: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#0A3E7E" stroke-width="1.8"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" stroke="#0A3E7E" stroke-width="1.5" fill="none"/></svg>`,
+  client: `<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6" fill="#5E66F9"/><rect x="13" y="4" width="7" height="7" rx="1.6" fill="#8A90FF"/><rect x="4" y="13" width="7" height="7" rx="1.6" fill="#8A90FF"/><rect x="13" y="13" width="7" height="7" rx="1.6" fill="#5E66F9"/></svg>`,
+  service: `<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1.6" fill="#7B8794"/><rect x="4" y="14" width="16" height="6" rx="1.6" fill="#9AA5B1"/><circle cx="8" cy="7" r="1.1" fill="#fff"/><circle cx="8" cy="17" r="1.1" fill="#fff"/></svg>`,
+};
+const icon = k => IC[k] || IC.service;
+
+/* ─── STATIC: nav icons + tab list ─────────────────────────────────────── */
+const TICO = {
+  overview: `<svg class="tico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`,
+  arch:     `<svg class="tico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg>`,
+  flows:    `<svg class="tico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7 11l10-4M7 13l10 4"/></svg>`,
+  inv:      `<svg class="tico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>`,
+  sys:      `<svg class="tico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="5" rx="1.5"/><rect x="3" y="13" width="18" height="5" rx="1.5"/></svg>`,
+  ins:      `<svg class="tico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-4 10.5c.7.7 1 1.2 1 2.5h6c0-1.3.3-1.8 1-2.5A6 6 0 0012 3z"/></svg>`,
+  reuse:    `<svg class="tico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12a8 8 0 018-8"/><path d="M20 12a8 8 0 01-8 8"/><path d="M4 12l-2 2 2 2M20 12l2-2-2-2"/><circle cx="12" cy="12" r="2.5"/></svg>`,
+};
+
+const K = DATA.kpis;
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+const TABS = [
+  {id:'overview', label:'Overview',             ico:TICO.overview},
+  {id:'arch',     label:'API-Led Architecture', ico:TICO.arch},
+  {id:'flows',    label:'Integration Flows',    ico:TICO.flows},
+  {id:'inv',      label:'Application Inventory',ico:TICO.inv},
+  {id:'sys',      label:'Backend Systems',      ico:TICO.sys},
+  {id:'ins',      label:'MuleSoft Insights',    ico:TICO.ins},
+  {id:'reuse',    label:'Reuse Analysis',       ico:TICO.reuse},
+];
+
+/* ─── STATIC: header + footer boot ─────────────────────────────────────── */
+document.title = `${DATA.meta.customer} — MuleSoft Architecture`;
+document.getElementById('h-title').textContent = `${DATA.meta.customer} — MuleSoft Estate`;
+document.getElementById('h-meta').innerHTML =
+  `<div>Master org <b>${esc(DATA.meta.masterOrg)}</b></div>
+   <div>Business groups: <b>${DATA.meta.orgs.map(esc).join(', ')}</b></div>
+   <div>Platform extract <b>${esc(DATA.meta.extractOn)}</b> <span class="pill">CH 2.0</span></div>`;
+document.getElementById('footer').innerHTML =
+  `Generated from Anypoint Platform network-graph export · ${esc(DATA.meta.customer)} ·
+   Visual language per MuleSoft API-Led architecture template. Topology reflects the <b>Production</b> business group dependency graph; inventory spans all environments.`;
+
+/* ─── STATIC: renderer functions ───────────────────────────────────────── */
+const dico = svg => `<div class="ic">${svg.replace('class="tico" ','')}</div>`;
+
+function renderBgCard(bg){
+  const healthPct = bg.total ? Math.round(bg.running/bg.total*100) : 0;
+  const apiTotal  = bg.experience + bg.process + bg.system + bg.other;
+  const pExp   = apiTotal ? Math.round(bg.experience/apiTotal*100) : 0;
+  const pProc  = apiTotal ? Math.round(bg.process/apiTotal*100)    : 0;
+  const pSys   = apiTotal ? Math.round(bg.system/apiTotal*100)     : 0;
+  const pOther = Math.max(0, 100 - pExp - pProc - pSys);
+  const prodPill    = bg.prod    > 0 ? '<span class="bg-pill prod">'    + bg.prod    + ' prod</span>'    : '';
+  const sandboxPill = bg.sandbox > 0 ? '<span class="bg-pill sandbox">' + bg.sandbox + ' sandbox</span>': '';
+  return '<div class="bg-card">'
+    + '<div class="bg-head">'
+    +   '<div class="bg-name">' + esc(bg.name) + '</div>'
+    +   '<div class="bg-pills">' + prodPill + sandboxPill + '</div>'
+    + '</div>'
+    + '<div class="bg-stat"><span class="bgs-lbl">Applications</span><span class="bgs-val">' + bg.running + ' running / ' + bg.total + ' total</span></div>'
+    + '<div class="bg-health"><div class="bgh-run" style="width:' + healthPct + '%"></div></div>'
+    + '<div class="bg-stat" style="margin-top:10px"><span class="bgs-lbl">API-Led layers</span>'
+    +   '<span class="bgs-val" style="font-size:11px;color:var(--muted)">Exp ' + bg.experience + ' · Proc ' + bg.process + ' · Sys ' + bg.system + '</span></div>'
+    + '<div class="bg-layers">'
+    +   '<div class="bgl-exp"   style="width:' + pExp   + '%"></div>'
+    +   '<div class="bgl-proc"  style="width:' + pProc  + '%"></div>'
+    +   '<div class="bgl-sys"   style="width:' + pSys   + '%"></div>'
+    +   '<div class="bgl-other" style="width:' + pOther + '%"></div>'
+    + '</div>'
+    + '<div class="bg-layer-legend">'
+    +   '<span><span class="dot" style="background:var(--exp);border-radius:2px"></span>Experience</span>'
+    +   '<span><span class="dot" style="background:var(--proc);border-radius:2px"></span>Process</span>'
+    +   '<span><span class="dot" style="background:var(--sys);border-radius:2px"></span>System</span>'
+    + '</div>'
+    + '</div>';
+}
+
+function renderBgSection(){
+  const bgs = DATA.businessGroups;
+  return '<div class="block" style="margin-top:34px">'
+    + '<h2 class="sec">Business Groups</h2>'
+    + '<p class="sec-desc">' + bgs.length + ' Anypoint business group' + (bgs.length > 1 ? 's' : '') + ' — app count, operational health, and API-led layer composition per group across all environments.</p>'
+    + '<div class="bg-grid">' + bgs.map(renderBgCard).join('') + '</div>'
+    + '</div>';
+}
+
+function renderOverview(){
+  const K = DATA.kpis;
+  const kpis = [
+    {num: K.totalApps,  lbl:'Total Deployed Apps'},
+    {num: `${K.running}<small> / ${K.totalApps}</small>`, lbl:'Running Apps'},
+    {num: K.uniqueApis, lbl:'Unique API Projects'},
+    {num: K.flows,      lbl:'Integration Flows (Prod)'},
+    {num: K.backends,   lbl:'Backend Systems'},
+    {num: K.envs,       lbl:'Active Environments'},
+  ];
+  const maxApps = Math.max(...DATA.envRows.map(r => r.total), 1);
+  return `
+  <div class="block">
+    <h2 class="sec">Executive Overview</h2>
+    <p class="sec-desc">Platform health and scale at a glance — all environments, production topology.</p>
+    <div class="kpi-grid">
+      ${kpis.map(k=>`<div class="kpi"><div class="num">${k.num}</div><div class="lbl">${k.lbl}</div></div>`).join('')}
+    </div>
+  </div>
+  <div class="cols">
+    <div class="card">
+      <h3>${dico(TICO.arch)} API-Led Layer Distribution</h3>
+      <div class="lgroup" style="margin-bottom:14px">
+        <span class="lchip" style="background:var(--exp)">Experience &middot; ${K.expCount}</span>
+        <span class="lchip" style="background:var(--proc)">Process &middot; ${K.procCount}</span>
+        <span class="lchip" style="background:var(--sys)">System &middot; ${K.sysCount}</span>
+      </div>
+      <p style="font-size:12.5px;color:var(--text);margin:0">
+        The estate spans ${K.expCount} Experience APIs facing consumers, ${K.procCount} Process APIs orchestrating business logic,
+        and ${K.sysCount} System APIs connecting backend systems.
+        ${K.sysCount >= K.procCount ? 'A wide System tier signals strong reusable connectivity investment.' : 'Growth in reusable Process APIs will compound integration velocity over time.'}
+      </p>
+    </div>
+    <div class="card">
+      <h3>${dico(TICO.inv)} Environment Inventory</h3>
+      ${DATA.envRows.map(r=>`
+        <div class="envbar">
+          <div class="top">
+            <span class="nm">${esc(r.name)} <span class="tag ${r.type==='production'?'prod':'sandbox'}">${r.type}</span></span>
+            <span class="ct">${r.total} apps${r.runningVcores ? ` &middot; <strong>${r.runningVcores}</strong> vCores` : ''}</span>
+          </div>
+          <div class="track">
+            <div class="run" style="width:${Math.round(r.running/r.total*100)||0}%"></div>
+            <div class="stop" style="width:${Math.round(r.stopped/r.total*100)||0}%"></div>
+          </div>
+        </div>`).join('')}
+      <div class="legend">
+        <span><span class="dot" style="background:linear-gradient(90deg,#0BA49B,#12C2B6)"></span>Running</span>
+        <span><span class="dot" style="background:#E6A23C"></span>Stopped</span>
+      </div>
+    </div>
+  </div>
+  <div class="cols" style="margin-top:24px">
+    <div class="card">
+      <h3>${dico(TICO.ins)} Business Domains</h3>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 12px">${DATA.tagDist.length} business domains tagged across the API catalog.</p>
+      <div class="chips">
+        ${DATA.tagDist.map(([nm,ct])=>`<span class="chip">${esc(nm)} <b>${ct}</b></span>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <h3>${dico(TICO.overview)} OAuth Client Governance</h3>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 12px">Registered client applications consuming Experience APIs via client-ID enforcement.</p>
+      <div class="clientlist">
+        ${DATA.clientApps.map(n=>`<div class="ca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>${esc(n)}</div>`).join('')}
+      </div>
+    </div>
+  </div>
+  ${(DATA.businessGroups && DATA.businessGroups.length > 0) ? renderBgSection() : ''}`;
+}
+
+function renderArch(){
+  const lane = (cls, title, sub, nodes) => `
+    <div class="lane ${cls}">
+      <div class="side">${title}<small>${sub} · ${nodes.length}</small></div>
+      <div class="band">
+        ${nodes.map(n=>`
+          <div class="api">
+            <div class="mi">${icon('mule')}</div>
+            <div class="txt">
+              <div class="nm">${esc(n.label)}</div>
+              ${n.tag?`<span class="dtag">${esc(n.tag)}</span>`:''}
+            </div>
+            ${n.in>1?`<div class="badge">${n.in}</div>`:''}
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  return `
+  <div class="block">
+    <h2 class="sec">API-Led Architecture</h2>
+    <p class="sec-desc">The canonical three-layer view of the production estate. Client applications and external traffic enter through Experience APIs, orchestrate through reusable Process APIs, and reach systems of record through System APIs. A number badge on an API card shows how many other APIs depend on it — the higher the count, the more reused that API is across the estate.</p>
+  </div>
+  <div class="arch">
+    <div class="tier-row">
+      ${DATA.consumers.map(c=>`<div class="node-ico"><div class="disc">${icon(c.icon)}</div><div class="cap">${esc(c.label)}</div></div>`).join('')}
+    </div>
+    <div class="conn"></div>
+    ${lane('experience','Experience','channel APIs',DATA.layers.experience)}
+    ${lane('process','Process','orchestration',DATA.layers.process)}
+    ${lane('system','System','systems of record',DATA.layers.system)}
+    <div class="conn"></div>
+    <div class="tier-row">
+      ${DATA.backends.map(b=>`<div class="node-ico"><div class="disc">${icon(b.icon)}</div><div class="cap">${esc(b.label)}</div></div>`).join('')}
+    </div>
+    <div class="archnote">
+      <span><span style="display:inline-flex;width:18px;height:18px;flex:0 0 auto">${MULE_SVG}</span> MuleSoft API</span>
+      <span style="color:var(--exp)">&#9632; Experience</span>
+      <span style="color:var(--proc)">&#9632; Process</span>
+      <span style="color:var(--sys)">&#9632; System</span>
+      <span><span style="display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;flex:0 0 auto">3</span>&thinsp;= called by 3+ APIs</span>
+    </div>
+  </div>`;
+}
+
+function renderFlows(){
+  return `
+  <div class="block">
+    <h2 class="sec">Integration Flows</h2>
+    <p class="sec-desc">Every production dependency, laid out left-to-right by architectural role. Hover any node to isolate its connections. Use the layer filters to focus on one tier at a time.</p>
+  </div>
+  <div class="graph-wrap">
+    <div class="graph-controls">
+      <div class="col-key">
+        <span><svg width="12" height="12"><rect width="12" height="12" rx="2" fill="var(--navy)"/></svg> Consumer</span>
+        <span><svg width="12" height="12"><rect width="12" height="12" rx="2" fill="var(--exp)"/></svg> Experience</span>
+        <span><svg width="12" height="12"><rect width="12" height="12" rx="2" fill="var(--proc)"/></svg> Process</span>
+        <span><svg width="12" height="12"><rect width="12" height="12" rx="2" fill="var(--sys)"/></svg> System</span>
+        <span><svg width="12" height="12"><rect width="12" height="12" rx="2" fill="#7B8794"/></svg> Backend</span>
+      </div>
+    </div>
+    <div class="graph-controls" style="padding-top:0;border-top:1px solid var(--line);margin:0 14px 10px;padding-bottom:10px">
+      <div class="flow-filters">
+        <button class="filt active" data-layer="all">All layers</button>
+        <button class="filt" data-layer="experience">Experience</button>
+        <button class="filt" data-layer="process">Process</button>
+        <button class="filt" data-layer="system">System</button>
+      </div>
+      <input id="flowSearch" type="search" placeholder="Filter by name…">
+      <span id="flowCount" style="margin-left:auto;font-weight:600;color:var(--muted);font-size:11.5px"></span>
+    </div>
+    <div class="graph-scroll"><svg id="flowsvg"></svg></div>
+  </div>`;
+}
+
+function renderInv(){
+  const envSet = [...new Set(DATA.inventory.map(r=>r.env))].sort();
+  return `
+  <div class="block">
+    <h2 class="sec">Application Inventory</h2>
+    <p class="sec-desc">Every one of the ${K.totalApps} deployed Mule applications across ${K.envs} active environments. Search by name, filter by environment / layer / status, and click any column to sort.</p>
+  </div>
+  <div class="toolbar">
+    <input type="search" id="invSearch" placeholder="Search applications…">
+    <select id="invEnv"><option value="">All Environments</option>${envSet.map(e=>`<option>${esc(e)}</option>`).join('')}</select>
+    <select id="invLayer"><option value="">All Layers</option><option>experience</option><option>process</option><option>system</option><option>other</option></select>
+    <select id="invStatus"><option value="">Any Status</option><option value="Running">Running</option><option value="Stopped">Stopped</option><option value="Undeployed">Undeployed</option></select>
+    <span class="count" id="invCount"></span>
+  </div>
+  <div class="tbl-wrap">
+    <table id="invTable">
+      <thead><tr>
+        <th data-c="name">Application</th>
+        <th data-c="layer">Layer</th>
+        <th data-c="env">Environment</th>
+        <th data-c="status">Status</th>
+        <th data-c="target">Target</th>
+        <th data-c="replica" style="text-align:right">Replicas</th>
+        <th data-c="vcores" style="text-align:right">vCores</th>
+        <th data-c="totalVcores" style="text-align:right">Total vCores</th>
+      </tr></thead>
+      <tbody id="invBody"></tbody>
+    </table>
+  </div>`;
+}
+
+function renderSys(){
+  const catMap = {
+    okta:'Identity / SSO', salesforce:'CRM / SaaS', sharepoint:'Collaboration',
+    azure:'Cloud Storage', outlook:'Email / Calendar', sftp:'File Transfer',
+    smb:'File Share', crypto:'Encryption Service', peoplesoft:'ERP / HCM',
+    oracle:'ERP / Database', ai:'AI / Inference', oanda:'FX / Market Data',
+    gateway:'API Gateway', mulesoft:'Anypoint Platform', timesheet:'Workforce Mgmt',
+    web:'Web / External', client:'API Consumer', service:'External Service',
+  };
+  return `
+  <div class="block">
+    <h2 class="sec">Backend Systems</h2>
+    <p class="sec-desc">The ${K.backends} systems of record and external services that the System APIs connect to. Connection count shows how many Mule flows terminate at each system.</p>
+  </div>
+  <div class="sys-grid">
+    ${DATA.backends.map(b=>`
+      <div class="sys">
+        <div class="ic">${icon(b.icon)}</div>
+        <div>
+          <div class="nm">${esc(b.label)}</div>
+          <div class="cat">${catMap[b.icon]||'External System'}</div>
+          <div class="conns">${b.in||0} System-API connection${(b.in||0)===1?'':'s'}</div>
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+
+function renderIns(){
+  const muleNodes = [...DATA.layers.experience,...DATA.layers.process,...DATA.layers.system];
+  const sharedApis = muleNodes.filter(n=>n.in>1).length;
+  const sharedPct  = muleNodes.length ? Math.round(sharedApis/muleNodes.length*100) : 0;
+  const reuseLabel = sharedPct >= 40 ? 'Mature' : sharedPct >= 20 ? 'Developing' : 'Early stage';
+  const reuseColor = sharedPct >= 40 ? 'var(--teal)' : sharedPct >= 20 ? 'var(--indigo)' : '#E6A23C';
+  const healthPct = K.totalApps ? Math.round(K.running/K.totalApps*100) : 0;
+  const maxIn = DATA.reuse[0] ? DATA.reuse[0].in : 1;
+  return `
+  <div class="block">
+    <h2 class="sec">MuleSoft Insights</h2>
+    <p class="sec-desc">Data-driven observations derived from the production dependency graph and inventory.</p>
+  </div>
+  <div class="insight-grid">
+    <div class="ins">
+      <h3><span class="ib" style="background:#EEF0FF">${TICO.arch.replace('class="tico"','')}</span>APIs Actively Reused</h3>
+      <div class="big">${sharedPct}%</div>
+      <p>${sharedApis} of ${muleNodes.length} APIs are called by 2 or more other APIs or consumers — these are your shared platform assets. <span style="font-weight:700;color:${reuseColor}">${reuseLabel}</span> — mature platforms typically reach 40 %+.</p>
+    </div>
+    <div class="ins">
+      <h3><span class="ib" style="background:#E7F6EF"><svg viewBox="0 0 24 24" fill="none" stroke="#0B7A4B" stroke-width="2"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10z"/><path d="M8 12l3 3 5-5"/></svg></span>Operational Health</h3>
+      <div class="big">${healthPct}%</div>
+      <p>${K.running} of ${K.totalApps} applications are running. Production is near-fully healthy; any stopped apps concentrate in lower environments where idle replicas are expected.</p>
+    </div>
+    <div class="ins">
+      <h3><span class="ib" style="background:#FFF3E0"><svg viewBox="0 0 24 24" fill="none" stroke="#B9770E" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></span>Consumption Governance</h3>
+      <div class="big">${DATA.clientApps.length}</div>
+      <p>Registered OAuth client applications enforcing client-ID on Experience APIs. Recommend extending with SLA tiers and rate limits in API Manager for fine-grained throttling.</p>
+    </div>
+  </div>
+  <div class="cols">
+    <div class="card">
+      <h3>${dico(TICO.ins)} Most Shared APIs</h3>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 14px">Ranked by how many other APIs or consumers depend on each asset. The higher the count, the more central that API is to the platform.</p>
+      ${DATA.reuse.slice(0,8).map(n=>{
+        const layerColor = n.layer==='experience'?'var(--exp)':n.layer==='process'?'var(--proc)':'var(--sys)';
+        const layerTip   = n.layer==='experience'?'Experience':n.layer==='process'?'Process':'System';
+        return `<div class="reuse-row">
+          <span title="${layerTip}" style="width:8px;height:8px;border-radius:2px;background:${layerColor};flex:0 0 8px;display:inline-block"></span>
+          <span class="rn">${esc(n.label)}</span>
+          <div class="rbar"><i style="width:${Math.round((n.in/maxIn)*100)}%"></i></div>
+          <span class="rv" title="${n.in} callers">${n.in}</span>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="card">
+      <h3>${dico(TICO.ins)} Recommendations</h3>
+      ${[
+        [`Consolidate stopped apps`, K.stopped === 0 ? `All applications actively deployed. Your environment reflects strong operational governance and efficient resource allocation.` : `${K.stopped} NOT_RUNNING apps detected. Review and remove idle replicas — particularly in Development — to reclaim vCore allocation.`],
+        [`Promote System-API reuse`, `Top reused System APIs: ${DATA.reuse.filter(n=>n.layer==='system').slice(0,3).map(n=>n.label).join(', ')||'N/A'}. Catalog them in Anypoint Exchange as canonical connectivity assets.`],
+        [`Right-size vCore allocation`, `All apps are at 0.1 vCore replicas. Validate this covers peak throughput for data-heavy flows such as file transfers and HRIS sync batches.`],
+        [`Formalize the Experience proxy pattern`, `Standardize proxy Experience APIs with API Manager policies for consistent security, throttling, and SLA enforcement across all consumer-facing channels.`],
+      ].map(([t,d],i)=>`
+        <div class="rec">
+          <div class="rk">${i+1}</div>
+          <div class="rt"><b>${t}.</b> ${d}</div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+/* ─── STATIC: graph builder ─────────────────────────────────────────────── */
+let _graphFilter = 'all', _graphSearch = '';
+
+function buildGraph(){
+  const svg = document.getElementById('flowsvg');
+  if(!svg) return;
+  const tip = document.getElementById('flowtip');
+  const countEl = document.getElementById('flowCount');
+
+  const COL_COLOR = {consumer:'#052D60', experience:'#052D60', process:'#0BA49B', system:'#5E66F9', backend:'#7B8794'};
+  const COL_ORDER = ['consumer','experience','process','system','backend'];
+  const NW=210, NH=32, HGAP=72, VGAP=10, PAD=36, HEADER=32;
+
+  // Filter visible nodes by active layer + search
+  const q = _graphSearch.toLowerCase();
+  const visibleKeys = new Set();
+  DATA.nodes.forEach(n => {
+    const col = n.kind==='consumer'?'consumer': n.kind==='backend'?'backend': n.layer||'experience';
+    const layerMatch = _graphFilter==='all' || col===_graphFilter || n.kind==='consumer' || n.kind==='backend';
+    const searchMatch = !q || n.label.toLowerCase().includes(q);
+    if(layerMatch && searchMatch) visibleKeys.add(n.key);
+  });
+
+  // Only include edges where BOTH endpoints are visible
+  const visibleEdges = DATA.edges.filter(e => {
+    const s = DATA.nodes.find(n=>n.label===e.source);
+    const t = DATA.nodes.find(n=>n.label===e.target);
+    return s && t && visibleKeys.has(s.key) && visibleKeys.has(t.key);
+  });
+
+  // Also include nodes that are connected to a visible node via an edge (keep context)
+  if(q || _graphFilter!=='all'){
+    visibleEdges.forEach(e => {
+      const s = DATA.nodes.find(n=>n.label===e.source);
+      const t = DATA.nodes.find(n=>n.label===e.target);
+      if(s) visibleKeys.add(s.key);
+      if(t) visibleKeys.add(t.key);
+    });
+  }
+
+  const visibleNodes = DATA.nodes.filter(n => visibleKeys.has(n.key));
+
+  const byCol = {};
+  COL_ORDER.forEach(c => byCol[c]=[]);
+  visibleNodes.forEach(n => {
+    const col = n.kind==='consumer'?'consumer': n.kind==='backend'?'backend': n.layer||'experience';
+    (byCol[col]||byCol['backend']).push(n);
+  });
+
+  const maxRows = Math.max(...COL_ORDER.map(c=>byCol[c].length), 1);
+  const totalW = COL_ORDER.length*(NW+HGAP) - HGAP + PAD*2;
+  const totalH = maxRows*(NH+VGAP) - VGAP + PAD*2 + HEADER;
+
+  // Render at natural pixel size — container scrolls
+  svg.setAttribute('viewBox',`0 0 ${totalW} ${totalH}`);
+  svg.setAttribute('width', totalW);
+  svg.setAttribute('height', totalH);
+
+  const pos = {};
+  COL_ORDER.forEach((col,ci) => {
+    const x = PAD + ci*(NW+HGAP);
+    byCol[col].forEach((n,ri) => {
+      pos[n.key] = {x, y: HEADER + PAD + ri*(NH+VGAP), col};
+    });
+  });
+
+  let html = '';
+
+  // column headers
+  COL_ORDER.forEach((col,ci) => {
+    const x = PAD + ci*(NW+HGAP);
+    const count = byCol[col].length;
+    if(!count) return;
+    html += `<text x="${x+NW/2}" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#7B8794" letter-spacing="0.6">${col.toUpperCase()} (${count})</text>`;
+  });
+
+  // edges
+  visibleEdges.forEach(e => {
+    const s = DATA.nodes.find(n=>n.label===e.source);
+    const t = DATA.nodes.find(n=>n.label===e.target);
+    if(!s||!t||!pos[s.key]||!pos[t.key]) return;
+    const p1=pos[s.key], p2=pos[t.key];
+    const x1=p1.x+NW, y1=p1.y+NH/2, x2=p2.x, y2=p2.y+NH/2;
+    const cx=(x1+x2)/2;
+    html += `<path class="gedge" data-s="${esc(s.key)}" data-t="${esc(t.key)}" d="M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}"/>`;
+  });
+
+  // nodes
+  visibleNodes.forEach(n => {
+    const p = pos[n.key];
+    if(!p) return;
+    const color = COL_COLOR[p.col]||'#7B8794';
+    const lbl = n.label.length>26 ? n.label.slice(0,25)+'…' : n.label;
+    html += `<g class="gnode" data-key="${esc(n.key)}" data-label="${esc(n.label)}" data-layer="${esc(n.layer||p.col)}" data-in="${n.in||0}" data-out="${n.out||0}" data-tag="${esc(n.tag||'')}">
+      <rect class="gcard" x="${p.x}" y="${p.y}" width="${NW}" height="${NH}" rx="6"/>
+      <rect x="${p.x}" y="${p.y}" width="5" height="${NH}" rx="3" fill="${color}"/>
+      <text class="glabel" x="${p.x+17}" y="${p.y+NH/2+4.5}" font-size="11.5">${esc(lbl)}</text>
+    </g>`;
+  });
+
+  svg.innerHTML = html;
+  if(countEl) countEl.textContent = `${visibleNodes.length} nodes · ${visibleEdges.length} edges`;
+
+  // interactions
+  function hideTip(){ tip.style.opacity=0; }
+  svg.addEventListener('mouseleave', ()=>{ svg.classList.remove('dim'); svg.querySelectorAll('.hl').forEach(e=>e.classList.remove('hl')); hideTip(); });
+  svg.querySelectorAll('.gnode').forEach(g => {
+    g.addEventListener('mouseenter', ev => {
+      const key = g.dataset.key;
+      svg.classList.add('dim');
+      const connKeys = new Set([key]);
+      svg.querySelectorAll('.gedge').forEach(e => {
+        if(e.dataset.s===key||e.dataset.t===key){ e.classList.add('hl'); connKeys.add(e.dataset.s); connKeys.add(e.dataset.t); }
+        else e.classList.remove('hl');
+      });
+      svg.querySelectorAll('.gnode').forEach(n => { n.classList.toggle('hl', connKeys.has(n.dataset.key)); });
+      tip.innerHTML = `<b>${esc(g.dataset.label)}</b><br>${g.dataset.layer}${g.dataset.tag?' · '+esc(g.dataset.tag):''}<br>In: ${g.dataset.in} · Out: ${g.dataset.out}`;
+      tip.style.opacity=1; tip.style.left=(ev.clientX+14)+'px'; tip.style.top=(ev.clientY-10)+'px';
+    });
+    g.addEventListener('mousemove', ev => { tip.style.left=(ev.clientX+14)+'px'; tip.style.top=(ev.clientY-10)+'px'; });
+  });
+
+  // filter + search wiring (runs once per renderFlows)
+  document.querySelectorAll('.filt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _graphFilter = btn.dataset.layer;
+      document.querySelectorAll('.filt').forEach(b => b.classList.toggle('active', b===btn));
+      buildGraph();
+    });
+  });
+  const searchEl = document.getElementById('flowSearch');
+  if(searchEl && !searchEl.dataset.wired){
+    searchEl.dataset.wired = '1';
+    searchEl.addEventListener('input', () => { _graphSearch = searchEl.value; buildGraph(); });
+  }
+}
+
+/* ─── STATIC: inventory wiring ──────────────────────────────────────────── */
+let _invSort = {c:'name', asc:true};
+function wireInv(){
+  const render = () => {
+    const q=(document.getElementById('invSearch').value||'').toLowerCase();
+    const env=(document.getElementById('invEnv').value||'');
+    const layer=(document.getElementById('invLayer').value||'');
+    const status=(document.getElementById('invStatus').value||'');
+    let rows = DATA.inventory.filter(r =>
+      (!q||r.name.toLowerCase().includes(q)) &&
+      (!env||r.env===env) &&
+      (!layer||r.layer===layer) &&
+      (!status||({RUNNING:'Running',STARTED:'Running',SCALING:'Running',NOT_RUNNING:'Stopped',UNDEPLOYED:'Undeployed'}[r.status]||r.status)===status)
+    );
+    rows.sort((a,b)=>{
+      const v = String(a[_invSort.c]||'').localeCompare(String(b[_invSort.c]||''),undefined,{numeric:true});
+      return _invSort.asc?v:-v;
+    });
+    document.getElementById('invCount').textContent = `${rows.length} of ${DATA.inventory.length} shown`;
+    document.getElementById('invBody').innerHTML = rows.map(r=>`<tr>
+      <td>${esc(r.name)}</td>
+      <td><span class="lpill ${r.layer}">${r.layer}</span></td>
+      <td>${esc(r.env)} <span class="etag ${r.envtype==='production'?'prod':'sandbox'}">${r.envtype}</span></td>
+      <td><span class="st ${r.status}"><span class="dot"></span>${{RUNNING:'Running',STARTED:'Running',SCALING:'Running',NOT_RUNNING:'Stopped',UNDEPLOYED:'Undeployed'}[r.status]||r.status}</span></td>
+      <td>${esc(r.target||'—')}</td>
+      <td style="text-align:right">${r.replica||1}</td>
+      <td style="text-align:right">${r.vcores||'—'}</td>
+      <td style="text-align:right;font-weight:600">${r.totalVcores||'—'}</td>
+    </tr>`).join('');
+  };
+  ['invSearch','invEnv','invLayer','invStatus'].forEach(id => document.getElementById(id)?.addEventListener('input',render));
+  document.querySelectorAll('#invTable thead th[data-c]').forEach(th => th.addEventListener('click',()=>{
+    if(_invSort.c===th.dataset.c) _invSort.asc=!_invSort.asc; else{ _invSort.c=th.dataset.c; _invSort.asc=true; }
+    render();
+  }));
+  render();
+}
+
+/* ─── STATIC: router + boot ─────────────────────────────────────────────── */
+const R = {overview:renderOverview, arch:renderArch, flows:renderFlows, inv:renderInv, sys:renderSys, ins:renderIns, reuse:renderReuse};
+
+/* ─── REUSE ANALYSIS tab ─────────────────────────────────────────────────── */
+function renderReuse(){
+  const ra = (DATA.reuseAnalysis || {}).production;
+  if(!ra) return `<div class="block"><p style="color:var(--muted)">No production reuse data available — export requires Anypoint Visualizer access.</p></div>`;
+
+  const pct = v => (v*100).toFixed(2) + '%';
+  const idx = v => v.toFixed(2);
+  const layerColor = l => l==='experience'?'var(--exp)':l==='process'?'var(--proc)':l==='system'?'var(--sys)':'var(--muted)';
+  const layerLabel = l => l==='experience'?'Experience':l==='process'?'Process':l==='system'?'System':'—';
+
+  // Maturity band from reuse rate
+  const rr = ra.reuseRate;
+  const maturity = rr >= 0.50 ? {label:'Mature API-Led',  color:'#0B7A4B', bg:'#E7F6EF', desc:'API-led operating at full scale. Assets are systematically shared and reused across the organisation as business-as-usual.'}
+                : rr >= 0.40 ? {label:'Industrialised',   color:'#028090', bg:'#E0F5F5', desc:'API-led embedded in business-as-usual. Self-service production and consumption model is operationalised.'}
+                : rr >= 0.20 ? {label:'Developing',        color:'#5E66F9', bg:'#EEF0FF', desc:'API-led practices established in core programs. Reuse is growing but not yet systematic across the organisation.'}
+                :              {label:'Incubating',         color:'#B9770E', bg:'#FFF3E0', desc:'API-led practices are in early stages. Most integrations are point-to-point with limited shared-asset reuse.'};
+
+  // Benchmark reference values — avg derived from peer set in ANA Industry Data Matrix
+  // (falls back to MuleSoft global average of 38% if matrix was unavailable at build time)
+  const _benchmarkAvg = (DATA.reuseAnalysis || {}).benchmarkAvg;
+  const BENCH_AVG = (_benchmarkAvg != null) ? _benchmarkAvg : 0.38;
+  const BENCH_LOW = 0.10, BENCH_HIGH = 0.70;
+  const barPct = Math.min(Math.round(rr * 100), 100);
+  const benchAvgPct = Math.round(BENCH_AVG * 100);
+
+  // Donut breakdown values
+  const total = ra.apisTotal;
+  const segments = [
+    {label:'Multiple consumers', count:ra.consumedMore, color:'var(--teal)',   pctVal: ra.apisTotal ? ra.consumedMore/ra.apisTotal : 0},
+    {label:'Single consumer',    count:ra.consumedOnce, color:'var(--indigo)', pctVal: ra.apisTotal ? ra.consumedOnce/ra.apisTotal : 0},
+    {label:'No consumers yet',   count:ra.consumedNone, color:'#D8E3F0',      pctVal: ra.apisTotal ? ra.consumedNone/ra.apisTotal : 0},
+  ];
+
+  // SVG donut (simple arc segments)
+  function donutSvg(segs, total){
+    if(!total) return '';
+    const R=54, cx=64, cy=64, strokeW=22;
+    const circ = 2*Math.PI*R;
+    let offset = 0;
+    let arcs = segs.map(s => {
+      const frac = s.count/total;
+      const dash = frac*circ;
+      const arc = `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${s.color}"
+        stroke-width="${strokeW}" stroke-dasharray="${dash.toFixed(2)} ${(circ-dash).toFixed(2)}"
+        stroke-dashoffset="${(-offset*circ).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"/>`;
+      offset += frac;
+      return arc;
+    }).join('');
+    return `<svg viewBox="0 0 128 128" style="width:128px;height:128px;flex-shrink:0">${arcs}
+      <text x="64" y="60" text-anchor="middle" font-size="19" font-weight="800" fill="var(--title)" font-family="inherit">${total}</text>
+      <text x="64" y="76" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="inherit">APIs</text>
+    </svg>`;
+  }
+
+  return `
+  <div class="block">
+    <h2 class="sec">Production Reuse Analysis</h2>
+    <p class="sec-desc">Calculated from the production Anypoint Visualizer dependency graph — a snapshot of API-to-API and client-to-API connections in production environments.</p>
+  </div>
+
+  <!-- ── Row 1: headline KPIs ── -->
+  <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:26px">
+    <div class="kpi">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Reuse Rate</div>
+      <div style="font-size:32px;font-weight:800;color:var(--title);line-height:1">${pct(ra.reuseRate)}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">(consumers − APIs) / consumers</div>
+    </div>
+    <div class="kpi">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Reusability</div>
+      <div style="font-size:32px;font-weight:800;color:var(--title);line-height:1">${pct(ra.reusability)}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">APIs with 2+ consumers / total active APIs</div>
+    </div>
+    <div class="kpi">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Reuse Index</div>
+      <div style="font-size:32px;font-weight:800;color:var(--title);line-height:1">${idx(ra.reuseIndexApis)}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">avg consumers per active API</div>
+    </div>
+    <div class="kpi">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Total Consumers</div>
+      <div style="font-size:32px;font-weight:800;color:var(--title);line-height:1">${ra.consumers}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">${ra.reuseInstances} reuse instances</div>
+    </div>
+    <div class="kpi">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">APIs Analysed</div>
+      <div style="font-size:32px;font-weight:800;color:var(--title);line-height:1">${ra.apisTotal}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">visible in Anypoint Visualizer</div>
+    </div>
+    <div class="kpi" style="background:${maturity.bg};border:1.5px solid ${maturity.color}20">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Maturity Stage</div>
+      <div style="font-size:20px;font-weight:800;color:${maturity.color};line-height:1.2">${maturity.label}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Target: Mature API-Led (50 %+)</div>
+    </div>
+  </div>
+
+  <!-- ── Row 2: donut + breakdown table ── -->
+  <div class="cols" style="margin-bottom:26px">
+
+    <!-- Donut + legend + layer breakdown -->
+    <div class="card">
+      <h3 style="font-size:13px;font-weight:700;color:var(--title);margin:0 0 16px">${dico(TICO.reuse)} API Consumer Distribution</h3>
+      <div style="display:flex;align-items:center;gap:22px;margin-bottom:20px">
+        ${donutSvg(segments, total)}
+        <div style="display:flex;flex-direction:column;gap:12px">
+          ${segments.map(s => `
+          <div>
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">
+              <span style="width:10px;height:10px;border-radius:50%;background:${s.color};flex-shrink:0"></span>
+              <span style="font-size:12.5px;font-weight:600;color:var(--title)">${s.count} <span style="font-weight:400;color:var(--muted)">(${pct(s.pctVal)})</span></span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);padding-left:17px">${s.label}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- Reuse by layer stacked bars -->
+      <div style="border-top:1px solid var(--line);padding-top:16px">
+        <div style="font-size:12px;font-weight:600;color:var(--title);margin-bottom:10px">Reuse by API-Led Layer</div>
+        ${(()=>{
+          const byLayer = ra.byLayer || {};
+          const layerDefs = [
+            {key:'experience', label:'Experience', color:'var(--exp)'},
+            {key:'process',    label:'Process',    color:'var(--proc)'},
+            {key:'system',     label:'System',     color:'var(--sys)'},
+            {key:'other',      label:'Other',      color:'var(--muted)'},
+          ].filter(d => byLayer[d.key] && byLayer[d.key].total > 0);
+
+          if(!layerDefs.length) return '<p style="font-size:11.5px;color:var(--muted)">No layer data available.</p>';
+
+          return layerDefs.map(d => {
+            const s = byLayer[d.key];
+            const moreW = Math.round(s.more / s.total * 100);
+            const onceW = Math.round(s.once / s.total * 100);
+            const noneW = 100 - moreW - onceW;
+            return `
+            <div style="margin-bottom:11px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="width:8px;height:8px;border-radius:50%;background:${d.color};flex-shrink:0"></span>
+                  <span style="font-size:12px;font-weight:600;color:var(--title)">${d.label}</span>
+                  <span style="font-size:11px;color:var(--muted)">${s.total} API${s.total!==1?'s':''}</span>
+                </div>
+                <span style="font-size:11.5px;font-weight:700;color:${d.color}">${pct(s.reuseRate)} reuse</span>
+              </div>
+              <div style="display:flex;border-radius:99px;overflow:hidden;height:8px;background:var(--line)">
+                ${moreW > 0 ? `<div style="width:${moreW}%;background:var(--teal)" title="${s.more} with 2+ consumers"></div>` : ''}
+                ${onceW > 0 ? `<div style="width:${onceW}%;background:var(--indigo);opacity:.7" title="${s.once} with 1 consumer"></div>` : ''}
+                ${noneW > 0 ? `<div style="width:${noneW}%;background:#D8E3F0" title="${s.none} with no consumers"></div>` : ''}
+              </div>
+            </div>`;
+          }).join('');
+        })()}
+        <div style="display:flex;gap:14px;margin-top:10px">
+          ${[['2+ consumers','var(--teal)'],['1 consumer','var(--indigo)'],['No consumers','#D8E3F0']].map(([l,c])=>`
+          <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted)">
+            <span style="width:8px;height:8px;border-radius:2px;background:${c};flex-shrink:0"></span>${l}
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Breakdown table -->
+    <div class="card">
+      <h3 style="font-size:13px;font-weight:700;color:var(--title);margin:0 0 14px">${dico(TICO.arch)} Breakdown</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead>
+          <tr style="border-bottom:1.5px solid var(--line)">
+            <th style="text-align:left;padding:6px 0;color:var(--muted);font-weight:600">Metric</th>
+            <th style="text-align:right;padding:6px 0;color:var(--muted);font-weight:600">Value</th>
+            <th style="text-align:left;padding:6px 8px;color:var(--muted);font-weight:600">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${[
+            ['# APIs Total',                  ra.apisTotal,                     'Mule apps visible in Anypoint Visualizer (production)'],
+            ['# APIs — 2+ consumers',          ra.consumedMore,                  'Actively reused shared-platform assets'],
+            ['# APIs — 1 consumer',            ra.consumedOnce,                  'Point-to-point; review for reuse opportunity'],
+            ['# APIs — no consumers',          ra.consumedNone,                  'Batch jobs, zombies, or not yet connected'],
+            ['Total consumers',                ra.consumers,                     'Client apps + Mule-to-Mule connections (expanded)'],
+            ['Reuse instances',                ra.reuseInstances,                'Consumers beyond the first per API'],
+            ['Reuse rate',                     pct(ra.reuseRate),                '(consumers − APIs w/consumer) / consumers'],
+            ['Reusability',                    pct(ra.reusability),              'APIs with 2+ consumers / total active APIs'],
+            ['Reuse index (active APIs)',       idx(ra.reuseIndexApis),           'Avg consumers per API with at least 1 consumer'],
+            ['Reuse index (all APIs)',          idx(ra.reuseIndexAll),            'Avg consumers across all visualizer APIs'],
+          ].map((r,i) => `
+          <tr style="border-bottom:1px solid var(--line);${i%2===0?'background:#FAFBFD':''}">
+            <td style="padding:7px 0;font-weight:600;color:var(--title)">${r[0]}</td>
+            <td style="padding:7px 0;text-align:right;font-weight:700;color:var(--teal)">${r[1]}</td>
+            <td style="padding:7px 8px;color:var(--muted);font-size:11.5px">${r[2]}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Row 3: benchmark bar + BG drill-down ── -->
+  <div class="cols" style="margin-bottom:26px">
+
+    <!-- Benchmark bar -->
+    <div class="card">
+      <h3 style="font-size:13px;font-weight:700;color:var(--title);margin:0 0 18px">Reuse Rate vs MuleSoft Benchmark</h3>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:16px">${_benchmarkAvg != null ? 'Peer industry benchmark' : 'MuleSoft customer benchmark'}: low ${pct(BENCH_LOW)} · avg ${pct(BENCH_AVG)} · high ${pct(BENCH_HIGH)}</div>
+
+      <!-- Customer bar -->
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+          <span style="font-size:12px;font-weight:600;color:var(--title)">${esc(DATA.meta.customer)} Today</span>
+          <span style="font-size:12px;font-weight:700;color:var(--title)">${pct(rr)}</span>
+        </div>
+        <div style="background:var(--line);border-radius:99px;height:10px;position:relative">
+          <div style="height:10px;border-radius:99px;background:var(--teal);width:${barPct}%;transition:width .6s"></div>
+        </div>
+      </div>
+
+      <!-- Benchmark avg bar -->
+      <div style="margin-bottom:22px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+          <span style="font-size:12px;font-weight:600;color:var(--muted)">Benchmark avg</span>
+          <span style="font-size:12px;font-weight:700;color:var(--muted)">${pct(BENCH_AVG)}</span>
+        </div>
+        <div style="background:var(--line);border-radius:99px;height:10px;position:relative">
+          <div style="height:10px;border-radius:99px;background:#CBD5E1;width:${benchAvgPct}%"></div>
+        </div>
+      </div>
+
+      <!-- Maturity stages -->
+      <div style="display:flex;gap:0;border-radius:8px;overflow:hidden;margin-bottom:10px">
+        ${[{l:'Incubating',pct:'20%',c:'#E6A23C20',tc:'#B9770E'},{l:'Developing',pct:'40%',c:'#EEF0FF',tc:'#5E66F9'},{l:'Industrialised',pct:'50%',c:'#E0F5F5',tc:'#028090'},{l:'Mature API-Led',pct:'50%+',c:'#E7F6EF',tc:'#0B7A4B'}].map(s=>`
+        <div style="flex:1;padding:8px 6px;background:${s.c};text-align:center">
+          <div style="font-size:10px;font-weight:700;color:${s.tc}">${s.l}</div>
+          <div style="font-size:10px;color:var(--muted)">&lt;${s.pct}</div>
+        </div>`).join('')}
+      </div>
+
+      <div style="margin-top:12px;padding:10px 12px;background:${maturity.bg};border-radius:8px;border-left:3px solid ${maturity.color}">
+        <span style="font-size:11.5px;color:var(--text)">${maturity.desc}</span>
+      </div>
+    </div>
+
+  ${/* ── By Business Group drill-down (right column of row 3) ── */ ''}
+  ${(()=>{
+    const bgs = (DATA.reuseAnalysis || {}).byBG || [];
+    if(bgs.length <= 1) return '';   // only show if multiple BGs exist
+
+    const maturityOf = r => r >= 0.50 ? {label:'Mature API-Led',color:'#0B7A4B',bg:'#E7F6EF'}
+                          : r >= 0.40 ? {label:'Industrialised', color:'#028090',bg:'#E0F5F5'}
+                          : r >= 0.20 ? {label:'Developing',     color:'#5E66F9',bg:'#EEF0FF'}
+                          :             {label:'Incubating',     color:'#B9770E',bg:'#FFF3E0'};
+
+    const bgRows = bgs.map((bg, i) => {
+      const m = maturityOf(bg.reuseRate);
+      const barW = Math.round(bg.reuseRate * 100);
+      const uid  = 'bg-drill-' + i;
+      const maxC = bg.perApp.length ? bg.perApp[0].consumers : 1;
+
+      const apiRows = bg.perApp.slice(0,8).map(a => {
+        const w = Math.round(a.consumers / maxC * 100);
+        const lc = layerColor(a.layer);
+        return `<div style="margin:7px 0">
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+            <span style="font-size:11px;font-weight:600;color:var(--title);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px" title="${esc(a.name)}">${esc(a.name)}</span>
+            <span style="font-size:11px;color:var(--muted);flex-shrink:0;margin-left:6px">${a.consumers} consumer${a.consumers!==1?'s':''}</span>
+          </div>
+          <div style="background:var(--line);border-radius:99px;height:4px">
+            <div style="height:4px;border-radius:99px;background:${lc};width:${w}%"></div>
+          </div>
+        </div>`;
+      }).join('');
+
+      const noApis = bg.perApp.length === 0
+        ? `<p style="font-size:11.5px;color:var(--muted);margin:10px 0 0">No APIs with consumers in this business group.</p>`
+        : apiRows;
+
+      return `
+      <div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:10px">
+        <!-- Row header — click to toggle -->
+        <button onclick="(function(b,d){const open=d.style.display!=='none';d.style.display=open?'none':'block';b.querySelector('.bg-chevron').textContent=open?'▾':'▴'})(this,document.getElementById('${uid}'))"
+          style="width:100%;background:none;border:none;cursor:pointer;padding:12px 16px;display:flex;align-items:center;gap:12px;text-align:left">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:12px;font-weight:700;color:var(--title)">${esc(bg.title)}</span>
+              <span style="font-size:10.5px;font-weight:600;color:${m.color};background:${m.bg};padding:2px 7px;border-radius:99px">${m.label}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;background:var(--line);border-radius:99px;height:6px">
+                <div style="height:6px;border-radius:99px;background:${m.color};width:${barW}%"></div>
+              </div>
+              <span style="font-size:12px;font-weight:700;color:${m.color};flex-shrink:0;min-width:38px;text-align:right">${pct(bg.reuseRate)}</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;margin-left:8px">
+            <span style="font-size:11px;color:var(--muted)">${bg.apisTotal} APIs · ${bg.consumers} consumers</span>
+            <span class="bg-chevron" style="font-size:13px;color:var(--muted)">▾</span>
+          </div>
+        </button>
+        <!-- Drill-down panel -->
+        <div id="${uid}" style="display:none;border-top:1px solid var(--line);padding:14px 16px;background:var(--surface)">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+            ${[
+              ['APIs Analysed',  bg.apisTotal,                            ''],
+              ['Reuse Rate',     pct(bg.reuseRate),                       m.color],
+              ['Consumers',      bg.consumers,                            ''],
+              ['Reused APIs',    bg.consumedMore,                         ''],
+              ['Single-consumer',bg.consumedOnce,                         ''],
+              ['No Consumers',   bg.consumedNone,                         ''],
+            ].map(([lbl,val,col])=>`
+            <div style="background:var(--bg);border-radius:8px;padding:9px 11px">
+              <div style="font-size:10.5px;color:var(--muted);margin-bottom:2px">${lbl}</div>
+              <div style="font-size:15px;font-weight:700;color:${col||'var(--title)'};">${val}</div>
+            </div>`).join('')}
+          </div>
+          <div style="font-size:12px;font-weight:600;color:var(--title);margin-bottom:8px">Top Consumed APIs</div>
+          ${noApis}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `
+    <div class="card">
+      <h3 style="font-size:13px;font-weight:700;color:var(--title);margin:0 0 4px">${dico(TICO.reuse)} Reuse by Business Group</h3>
+      <p style="font-size:11.5px;color:var(--muted);margin:0 0 14px">Click a business group to expand its reuse detail and top consumed APIs.</p>
+      ${bgRows}
+    </div>`;
+  })()}
+
+  </div><!-- end row 3 -->
+
+  <!-- ── Row 4: most consumed APIs (full width) ── -->
+  <div class="card">
+    <h3 style="font-size:13px;font-weight:700;color:var(--title);margin:0 0 6px">${dico(TICO.ins)} Most Consumed APIs</h3>
+    <p style="font-size:11.5px;color:var(--muted);margin:0 0 14px">APIs ranked by number of consumers in the production dependency graph. Only APIs with at least one consumer are shown.</p>
+    ${ra.perApp.length === 0 ? `<p style="color:var(--muted);font-size:12px">No APIs with consumers found in production graph.</p>` : (()=>{
+        const maxC = ra.perApp[0].consumers || 1;
+        const renderBar = a => {
+          const barW = Math.round(a.consumers/maxC*100);
+          const lc = layerColor(a.layer);
+          const ll = layerLabel(a.layer);
+          return `<div style="margin:10px 0">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+              <div style="display:flex;align-items:center;gap:6px;min-width:0">
+                <span style="width:7px;height:7px;border-radius:50%;background:${lc};flex-shrink:0" title="${ll}"></span>
+                <span style="font-size:12px;font-weight:600;color:var(--title);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px" title="${esc(a.name)}">${esc(a.name)}</span>
+              </div>
+              <span style="font-size:12px;font-weight:700;color:var(--title);flex-shrink:0;margin-left:8px">${a.consumers} <span style="font-weight:400;color:var(--muted)">consumer${a.consumers!==1?'s':''}</span></span>
+            </div>
+            <div style="background:var(--line);border-radius:99px;height:5px">
+              <div style="height:5px;border-radius:99px;background:${lc};width:${barW}%"></div>
+            </div>
+          </div>`;
+        };
+        const top10 = ra.perApp.slice(0,10).map(renderBar).join('');
+        const rest  = ra.perApp.slice(10);
+        const uid   = 'ra-more-' + Math.random().toString(36).slice(2);
+        const extra = rest.length === 0 ? '' : `
+          <div id="${uid}" style="display:none">${rest.map(renderBar).join('')}</div>
+          <button onclick="(function(b,d){d.style.display=d.style.display==='none'?'block':'none';b.textContent=d.style.display==='none'?'Show all ${ra.perApp.length} APIs ▾':'Show less ▴'})(this,document.getElementById('${uid}'))"
+            style="margin-top:8px;background:none;border:1px solid var(--line);border-radius:6px;padding:5px 12px;font-size:11.5px;color:var(--muted);cursor:pointer;width:100%">Show all ${ra.perApp.length} APIs ▾</button>`;
+        return top10 + extra;
+      })()
+    }
+    <div style="display:flex;gap:14px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">
+      ${[['experience','var(--exp)'],['process','var(--proc)'],['system','var(--sys)'],['other','var(--muted)']].map(([l,c])=>`
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)">
+        <span style="width:8px;height:8px;border-radius:50%;background:${c}"></span>${l.charAt(0).toUpperCase()+l.slice(1)}
+      </div>`).join('')}
+    </div>
+  </div>
+
+  </div>`;
+}
+
+function show(id){
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.id===id));
+  const main = document.getElementById('main');
+  main.innerHTML = `<div class="panel active" id="p-${id}">${R[id]()}</div>`;
+  if(id==='flows') requestAnimationFrame(buildGraph);
+  if(id==='inv') wireInv();
+  location.hash = id;
+}
+
+document.getElementById('tabs').innerHTML = TABS.map(t =>
+  `<button data-id="${t.id}">${t.ico}${t.label}</button>`).join('');
+document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('click', () => show(b.dataset.id)));
+const _initial = (location.hash||'').slice(1);
+show(_initial in R ? _initial : 'overview');
+</script>
+</body>
+</html>

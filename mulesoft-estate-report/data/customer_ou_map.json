@@ -1,0 +1,10 @@
+{
+  "_comment": "Maps customer names (case-insensitive substring match on masterOrgName) to one or more OU categories from the ANA Industry Data Matrix. Add an entry for each customer whose industry spans multiple categories or needs a specific override.",
+  "informa": ["Technology, Media, Telecomm", "Consumer and Business Services"],
+  "jaguar land rover": ["Manufacturing, Auto, Energy"],
+  "jlr": ["Manufacturing, Auto, Energy"],
+  "sgn": ["Manufacturing, Auto, Energy"],
+  "scotia gas": ["Manufacturing, Auto, Energy"],
+  "national grid": ["Manufacturing, Auto, Energy"],
+  "talktalk": ["Technology, Media, Telecomm"]
+}

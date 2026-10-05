@@ -1,0 +1,21 @@
+# Customer data stays local — never commit it.
+# Root-anchored (leading /) so mulesoft-estate-report/data/*.json is NOT ignored.
+
+# Anypoint network-graph exports and intermediate DATA files
+/*.json
+
+# Generated customer reports
+/*.html
+
+# Regression snapshots, old report copies, extracted third-party report data
+/_regress/
+
+# Stale packaged copy of the skill (rebuild from the folder if needed)
+/*.zip
+
+# Local Claude Code settings (machine-specific permissions)
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.pyc
