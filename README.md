@@ -22,10 +22,11 @@ metrics are designed to match that process (see [Validation history](#validation
 ├── README.md                         ← this file
 ├── .gitignore                        ← keeps customer data out
 └── mulesoft-estate-report/           ← the Claude Code skill (self-contained)
-    ├── SKILL.md                      ← skill definition + execution steps for Claude
+    ├── SKILL.md                      ← skill definition: the run procedure Claude follows
     ├── mulesoft_arch_template.html   ← report template (all CSS/JS inline); DATA is injected
-    ├── prompt_mulesoft_architecture_html.md  ← reference spec for the DATA shape/report design
+    ├── prompt_mulesoft_architecture_html.md  ← reference: input format, DATA contract, metrics, tabs
     ├── scripts/
+    │   ├── build_report.py           ← ENTRY POINT: export JSON → finished HTML (one command)
     │   └── build_data.py             ← export JSON → DATA object (the real logic lives here)
     └── data/
         ├── ANA Industry Data Matrix - Golden Template.xlsx  ← peer benchmark source
@@ -57,52 +58,53 @@ Not in the repo, but present locally in the working folder
 python -m pip install pandas openpyxl
 ```
 
-### Generate a report (two steps)
-
-**1. Build the DATA object** (the reconciliation report goes to stderr, DATA JSON to stdout):
+### Generate a report (one command)
 
 ```bash
-python mulesoft-estate-report/scripts/build_data.py "<export>.json" > mule_data.json
+python mulesoft-estate-report/scripts/build_report.py "<export>.json"
 ```
 
-Check the stderr output: `accounted for` must equal `raw edges`. The script exits
-non-zero with `RECONCILIATION FAILED` if any edge is lost. Never ship a report in that case.
-
-**2. Inject DATA into the template** and name the output `{masterOrgName}_Mule_Architecture.html`:
-
-```bash
-python -c "
-import json
-tpl = open('mulesoft-estate-report/mulesoft_arch_template.html', encoding='utf-8').read()
-ph = 'const DATA = /* DATA_PLACEHOLDER */ null;'
-assert tpl.count(ph) == 1
-data = open('mule_data.json', encoding='utf-8').read().strip()
-name = json.loads(data)['meta']['masterOrg'].replace(' ', '_')
-open(name + '_Mule_Architecture.html', 'w', encoding='utf-8').write(tpl.replace(ph, 'const DATA = ' + data + ';'))
-print('written', name + '_Mule_Architecture.html')
-"
-```
+This writes `{masterOrgName}_Mule_Architecture.html` (spaces → underscores) next to the
+input. Use `-o <folder>` to write elsewhere, and `--keep-data` to also save the DATA JSON.
+It prints three things to stderr:
+- the **edge reconciliation**: `accounted for` must equal `raw edges`. If any edge is lost,
+  the script exits with `RECONCILIATION FAILED` and writes nothing.
+- the **benchmark** line
+- a **summary** of the key numbers, plus a warning if the export has no `apps[]`
 
 Open the HTML by double-clicking it. It has no external dependencies.
 
+`build_report.py` runs `build_data.py` and injects its output into the template. You can
+run `build_data.py <export.json> > data.json` on its own to inspect the DATA object.
+
 **Gotchas:**
-- Use paths relative to the project folder. On Windows, `/tmp/...` in Git Bash and
-  `/tmp/...` in Windows Python point to different places.
 - The input is always the full `*-network_graphs-*.json` export, **not** the smaller
   `*_data.json` files (those are old script outputs).
+- On Windows, don't pass files through `/tmp`: Git Bash's `/tmp` and Windows Python's
+  `/tmp` are different folders.
+- If the benchmark line says `using all industries` or `NOT AVAILABLE`, the customer is
+  missing from `customer_ou_map.json`, or pandas/openpyxl isn't installed.
 
 ### Using it as a Claude Code skill (optional)
 
-Copy `mulesoft-estate-report/` to `~/.claude/skills/mulesoft-estate-report/`. Then asking
-Claude to "generate the MuleSoft report from <file>" triggers it. It is **not**
-currently installed as a skill; runs have been done manually from this folder.
+Copy the whole `mulesoft-estate-report/` folder, **including `data/`**, to
+`~/.claude/skills/mulesoft-estate-report/`. Then asking Claude to "generate the MuleSoft
+report from <file>" triggers it. `SKILL.md` holds the procedure Claude follows: validate,
+run `build_report.py`, review, report. It is **not** currently installed as a skill; runs
+have been done from this folder.
+
+**Verified 2026-10-05:** running from a fresh clone, from an isolated copy of the skill
+folder, and from this working folder all produce byte-identical HTML for all four customers.
 
 ---
 
 ## The report
 
-The tabs are: Business Groups · Executive Overview · API-Led Architecture · Integration Flows ·
-Application Inventory · Backend Systems · MuleSoft Insights · Production Reuse Analysis.
+There are seven tabs: Overview · API-Led Architecture · Integration Flows · Application Inventory ·
+Backend Systems · MuleSoft Insights · Reuse Analysis. The template also has a Business Groups
+section in Overview, but it stays hidden because the script doesn't produce that data yet (see
+open items). For a per-tab breakdown of the content and the DATA fields each tab uses, see
+`mulesoft-estate-report/prompt_mulesoft_architecture_html.md` §5.
 
 ### Input export format
 
@@ -157,12 +159,34 @@ its `numberOfClientApplications`.
 | Internal CH2/RTF hostnames carry a `-xxxxxx` suffix | TalkTalk, JLR, Informa | Suffix stripped before matching to Mule apps (fix 2026-10-05) |
 | `SCALING` status | JLR, Informa | Counted as running everywhere (`RUNNING_STATES`) |
 | Apps in **deleted environments** (e.g. JLR env `737a11c2`) aren't in the export | JLR | Not fixable from the export. Another tool shows them as "INVALID" |
-| Some business groups have **two environments with the same name** (e.g. two "Dev" in Korea/MENA) | JLR | Always key apps on `envId`, never on env name |
+| Some business groups have **two environments with the same name** (e.g. two "Dev" in Korea/MENA) | JLR | When comparing app lists, key apps on `envId`, not env name. The report's env chart groups by **name**, so same-named envs share one row (JLR: 36 env IDs with apps → 18 rows) |
 | Same app name deployed twice in one env (shared-space stopped + private-space running) | JLR (7 cases) | Kept as two inventory rows; it's real duplication in the estate |
 
 ---
 
 ## Change log
+
+### 2026-10-05 (later): v3.3.0, docs and one-command runner
+
+Prompted by a check of whether an extracted copy of the skill behaves the same as the runs done here.
+
+1. **New `scripts/build_report.py`** runs export → finished HTML in one command. Previously,
+   SKILL.md told Claude to inject DATA by hand, i.e. to re-type 100–350 KB of HTML, which
+   risked a truncated or altered file. Output is byte-identical to the previous method.
+2. **`SKILL.md` rewritten.** Additions: prerequisites (pandas/openpyxl), the `data/` folder and
+   benchmark, onboarding a customer to `customer_ou_map.json`, input validation, Windows notes,
+   and a complete sharing list (the old list left out `data/`, which silently dropped the
+   benchmark). Removed: the broken step numbering and a dead link to a file on the original
+   author's machine.
+3. **`prompt_mulesoft_architecture_html.md` rewritten** from the original "hand-build the HTML"
+   brief into an accurate reference covering the input format, transformation rules, DATA
+   contract, metric definitions and the 7 tabs.
+4. **"Active environments" KPI** now counts distinct env names with apps. It used to count
+   env *types*, so the maximum was 2. JLR 2→18, SGN 2→3, Informa 2→6, TalkTalk unchanged (1).
+5. **Exports are now read as UTF-8** regardless of the Windows locale. No effect on current
+   exports, which are all ASCII.
+6. **Template comment updated** to say DATA is injected by `build_report.py`. Comment only,
+   no rendering change.
 
 ### 2026-10-05: script v3.2.0 + fixes (TalkTalk onboarding and validation)
 
@@ -216,9 +240,9 @@ which embeds `const DATA = {...}` with an `apps[]` list. It compared well: 205 a
 
 | Customer | Export file (local) | Extracted | Notes |
 |---|---|---|---|
-| Jaguar Land Rover | `JLR Global 360-network_graphs-17_08_2026_06_49_41.json` | 17 Aug 2026 | 205 apps / 140 running, 64 flows |
-| SGN | `SGN-network_graphs-20_04_2026_11_21_22.json` | 20 Apr 2026 | 149 apps, 94 flows |
-| Informa | `Global Support-network_graphs-30_06_2026_10_35_02.json` | 30 Jun 2026 | 618 apps / 401 running, 384 flows |
+| Jaguar Land Rover | `JLR Global 360-network_graphs-17_08_2026_06_49_41.json` | 17 Aug 2026 | 205 apps / 140 running, 18 envs, 64 flows |
+| SGN | `SGN-network_graphs-20_04_2026_11_21_22.json` | 20 Apr 2026 | 149 apps, 3 envs, 94 flows |
+| Informa | `Global Support-network_graphs-30_06_2026_10_35_02.json` | 30 Jun 2026 | 618 apps / 401 running, 6 envs, 384 flows |
 | TalkTalk | `TalkTalk.json` | 21 Sep 2026 | RTF, no `apps[]`; 47 prod Mule apps, 111 flows; business group "Wholesale" |
 
 ---
@@ -251,13 +275,15 @@ done
 python - <<'EOF'
 import json
 for c in ('jlr','sgn','informa','talktalk'):
-    a=json.load(open(f'_regress/{c}_v3.json')); b=json.load(open(f'_regress/{c}_new.json'))
+    a=json.load(open(f'_regress/{c}_v4.json')); b=json.load(open(f'_regress/{c}_new.json'))
     print(c, 'changed keys:', [k for k in a if a[k]!=b[k]],
           'kpi diffs:', {k:(a['kpis'][k],b['kpis'][k]) for k in a['kpis'] if a['kpis'][k]!=b['kpis'][k]})
 EOF
 ```
 
-`_regress/*_v3.json` are the outputs of the current committed script (2026-10-05).
+`_regress/*_v4.json` are the outputs of the current committed script (v3.3.0, 2026-10-05).
+They only exist on the owner's machine. On a fresh clone, run the loop once *before*
+changing anything to create a baseline, and rename the outputs to `*_v4.json`.
 
 ---
 
@@ -271,16 +297,28 @@ EOF
 - **TalkTalk:** `pro-whs-sys-som2-appointing-api-v1` is called in production but isn't deployed
   there. It still shows as a "Cloudhub API" backend, and it's a talking point for the customer.
 - **JLR clean-up talking points:** 7 duplicate app deployments, and 3 orphaned apps in a deleted environment.
-- `SKILL.md` links to `BACKEND_CONSOLIDATION_STRATEGY.md` on the original skill author's
-  machine (`/Users/fernando.cedeno/...`). That file isn't in this repo.
+- **Business Groups section is hidden.** The template's Overview can show per-business-group
+  cards (apps, running, prod/sandbox, layer mix), but only if `DATA.businessGroups` exists, and
+  `build_data.py` doesn't produce it yet. The data is available (`apps[].orgid` → `orgs[]`).
+  Adding it would make a new section appear in every multi-BG report.
+- **Fixed recommendation text** on the Insights tab, e.g. "All apps are at 0.1 vCore
+  replicas" and "HRIS sync", isn't derived from data. Sense-check it before presenting.
+- **Unclassified ("other") Mule apps** are drawn in the Backend column of the Integration Flows
+  graph. That's template behaviour.
+- **Sandbox reuse** is computed (`reuseAnalysis.sandbox`) but not shown anywhere in the report.
+- The original strategy doc `BACKEND_CONSOLIDATION_STRATEGY.md` (on the original skill author's
+  machine) isn't in this repo. `prompt_mulesoft_architecture_html.md` §3.3 now documents the rules.
 - Optional: install the skill to `~/.claude/skills/` so it's triggerable by name.
 
 ---
 
 ## Notes for Claude (continuing this project)
 
-- **Don't hand-write the data transformation or the HTML.** Always run `build_data.py`, then
-  inject into the template. Don't edit the template's design (see `SKILL.md`).
+- **Generate reports only with `scripts/build_report.py`.** Never hand-write the DATA
+  transformation or the HTML, and don't edit the template's design. `SKILL.md` is the run
+  procedure; `prompt_mulesoft_architecture_html.md` is the reference for the input format,
+  DATA contract and metrics. Keep both in step with the code whenever the script or
+  template changes.
 - **Before changing `build_data.py`:** explain the problem and the proposed fix to the user and
   get agreement. Then snapshot, change, run the regression check across *all* local exports,
   and report exactly which numbers moved for which customer. Fixes for one customer have

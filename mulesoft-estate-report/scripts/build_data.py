@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-build_data.py — mulesoft-estate-report skill, DATA object builder (v3.2.0)
+build_data.py — mulesoft-estate-report skill, DATA object builder (v3.3.0)
 
 Turns an Anypoint network-graph JSON export into the DATA object the template
 injects. Written as a bundled script (not hand-authored per run) so the edge
@@ -28,11 +28,22 @@ v3.2.0:
     the customer's count, non-zero reuse data. Result emitted as
     reuseAnalysis.benchmarkAvg (null if matrix not found).
 
+v3.3.0 (2026-10-05):
+  - CH2/RTF internal hostnames: trailing 6-char suffix stripped before matching
+    to Mule apps (app-name-97pqx7.internal-….cloudhub.io -> app-name).
+  - '-pro-' recognised as the Process layer.
+  - Backend overrides: Fibre Gateway, Salesforce Experience Cloud, Entra ID.
+  - clientApps from production client groups only (export mixes in sandbox).
+  - SCALING counted as running everywhere (RUNNING_STATES).
+  - kpis.envs = distinct env names with apps (was distinct env types, max 2).
+  - Input read as UTF-8 regardless of OS locale.
+
 Usage:
-    python3 build_data.py <input.json> [--emit-data-only]
+    python build_data.py <input.json>
 
 Prints a human-readable reconciliation report to stderr and the DATA object as
-JSON to stdout.
+JSON to stdout. Normally invoked via build_report.py, which also injects DATA
+into the HTML template.
 """
 import json
 import os
@@ -508,9 +519,9 @@ def strip_host(label):
 
 def main():
     if len(sys.argv) < 2:
-        sys.exit('usage: build_data.py <input.json> [--emit-data-only]')
+        sys.exit('usage: build_data.py <input.json>')
     path = sys.argv[1]
-    with open(path) as f:
+    with open(path, encoding='utf-8') as f:
         raw = json.load(f)
 
     nodes, edges, apps, envs, clientgroup, master, orgs, sandbox_dep = normalise(raw)
@@ -674,8 +685,6 @@ def main():
         stopped = total_apps - running
         prod = sum(1 for a in apps if a.get('envtype') == 'production')
         sandbox = sum(1 for a in apps if a.get('envtype') == 'sandbox')
-        env_count = len({a.get('envtype') for a in apps})
-
         # Build envRows for the overview bar chart
         env_row_map = {}
         for a in apps:
@@ -692,6 +701,9 @@ def main():
             else:
                 env_row_map[ename]['stopped'] += 1
         env_rows = sorted(env_row_map.values(), key=lambda x: -x['total'])
+        # Active environments = distinct env names with apps deployed — the same
+        # rows as the env chart and the inventory's environment filter.
+        env_count = len(env_rows)
 
         # Build inventory list
         inventory = []

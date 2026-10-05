@@ -2,14 +2,14 @@
 name: mulesoft-estate-report
 description: >
   Generate a polished, single-file interactive HTML architecture report from a MuleSoft
-  Anypoint Platform network-graph JSON export. Use this skill whenever the user wants to
-  produce, regenerate, or update the MuleSoft architecture HTML document — including when
-  they mention an Anypoint export, a network-graph JSON, an architecture report, or say
-  something like "generate the MuleSoft report", "create the architecture HTML", "run the
-  mule prompt", or "build the architecture doc from the JSON". Also trigger when the user
-  pastes or references a path to a JSON file that looks like an Anypoint network-graph
-  export. The output is always a single self-contained .html file — no external
-  dependencies, all CSS/JS/SVGs inline.
+  Anypoint Platform network-graph JSON export (the "ANA" export). Use this skill whenever
+  the user wants to produce, regenerate, or update the MuleSoft architecture HTML document —
+  including when they mention an Anypoint export, a network-graph JSON, an ANA report, an
+  architecture report, API reuse metrics, or say something like "generate the MuleSoft
+  report", "create the architecture HTML", "run the mule prompt", or "build the architecture
+  doc from the JSON". Also trigger when the user pastes or references a path to a JSON file
+  that looks like an Anypoint network-graph export. The output is always a single
+  self-contained .html file — no external dependencies, all CSS/JS/SVGs inline.
 user-invocable: true
 ---
 
@@ -17,139 +17,161 @@ user-invocable: true
 
 ## How this skill works
 
-All CSS, icons, renderers, and scaffolding live in a pre-built template bundled with this
-skill. The base directory for this skill is injected automatically — use it to resolve both
-support files without any hardcoded paths:
+Everything is deterministic and bundled. **Your job is to validate the input, run one
+script, and report the results — never to hand-write the data transformation or the HTML.**
 
 ```
-<BASE_DIR>/mulesoft_arch_template.html
-<BASE_DIR>/prompt_mulesoft_architecture_html.md
+<BASE_DIR>/
+├── SKILL.md                          ← this file
+├── mulesoft_arch_template.html       ← report template; DATA is injected into it
+├── prompt_mulesoft_architecture_html.md  ← reference: DATA contract, metric definitions, tabs
+├── scripts/
+│   ├── build_report.py               ← ENTRY POINT: export JSON → finished HTML
+│   └── build_data.py                 ← export JSON → DATA object (called by build_report.py)
+└── data/
+    ├── ANA Industry Data Matrix - Golden Template.xlsx  ← peer benchmark source
+    └── customer_ou_map.json          ← customer name → industry (OU) for the benchmark
 ```
 
-Where `<BASE_DIR>` is the "Base directory for this skill" path shown above this section
-in your context.
+`<BASE_DIR>` is the "Base directory for this skill" path shown above this section in your
+context. All scripts locate the template and `data/` relative to themselves, so the skill
+works from any folder.
 
-**Your job each run is to run the bundled data builder, then inject its output into the
-template — not to hand-write the transformation or the HTML.**
+> **Why scripts, not hand-authoring:** the transformation (clientGroup merge, backend
+> consolidation, internal-API remapping, edge reconciliation, reuse metrics) is subtle, and
+> hand-written versions have silently dropped edges before. `build_data.py` enforces an
+> edge reconciliation invariant and aborts if any edge is lost. `build_report.py` does the
+> template injection so the 100–350 KB HTML is never re-typed. Same input → byte-identical
+> output.
 
-> **Why a bundled script (v3.0.0):** the data transformation — clientGroup merge, backend
-> consolidation, and above all *edge remapping* — is subtle. Hand-authoring it per run
-> previously produced a silent bug that dropped 100% of backend-bound edges (flows showed
-> 260 instead of ~584). `scripts/build_data.py` does it once, correctly, and enforces an
-> edge **reconciliation invariant** (`raw = kept + duplicates + self-loops + unresolved`)
-> that aborts loudly if any edge is ever lost. Do not reimplement this by hand.
+---
+
+## Prerequisites
+
+- **Python 3.** On Windows use `python` (`python3` may be a Microsoft Store stub). On
+  macOS/Linux use `python3`. Wherever this file says `python`, use whichever works.
+- **pandas + openpyxl.** These are needed for the peer benchmark only. Check with
+  `python -c "import pandas, openpyxl"`. If either is missing, tell the user and offer
+  `python -m pip install pandas openpyxl`. Without them the report still builds, but
+  `benchmarkAvg` is null and the Reuse tab falls back to a generic 38% "MuleSoft
+  customer benchmark". **This produces a different report**, so don't let it happen silently.
 
 ---
 
 ## Execution steps
 
-1. **Read the JSON input** — the user will provide a path or paste the JSON. If not
-   provided, ask: "Which Anypoint network-graph JSON file should I use?"
+### 1. Get the input
 
-2. **Run the data builder** and capture the reconciliation report:
+The user provides a path to an Anypoint network-graph export, usually named
+`<Org>-network_graphs-<dd_mm_yyyy_hh_mm_ss>.json`. If none is given, ask: "Which Anypoint
+network-graph JSON file should I use?" Use the full export, **not** a `*_data.json` file;
+those are previous outputs of this skill.
 
-   ```bash
-   python3 <BASE_DIR>/scripts/build_data.py <input.json> > /tmp/mule_data.json
-   ```
+### 2. Validate the export (always, and especially for a new customer)
 
-   The script prints the edge reconciliation to stderr — **surface those numbers to the
-   user** (raw edges, kept flows, duplicates collapsed, internal APIs remapped, backends).
-   If the script exits non-zero (`RECONCILIATION FAILED`), stop and report it; do not ship
-   a report with silently-lost edges.
+Quick checks, run with a short Python snippet. Don't print the whole file.
 
-3. **Inject and write** — read `<BASE_DIR>/mulesoft_arch_template.html`, replace the line
-   `const DATA = /* DATA_PLACEHOLDER */ null;` with `const DATA = <contents of
-   /tmp/mule_data.json>;`, and write the output file (Step 6–8 below). You do **not** need
-   to read the prompt spec for a normal run — it is reference documentation for the DATA
-   shape and the consolidation strategy the script implements.
+- Top-level keys are `masterOrg, orgs, envs, apps, sandbox, production`.
+- `production.dependencies.nodes` / `.edges` are non-empty, and every edge's
+  `sourceId`/`targetId` exists in `nodes`.
+- `apps[]` is populated. If it's **empty** (seen with Runtime Fabric estates whose nodes have
+  `deploymentTarget: "rtf"`), warn the user: the Overview will show every production Mule
+  node as one running app in one environment, and the env chart and inventory will be empty.
+- `masterOrg.masterOrgName` matches a key in `data/customer_ou_map.json`
+  (case-insensitive substring). If not, see step 4.
 
-The DATA shape the script emits is:
+### 3. Run the report builder
 
-```js
-const DATA = {
-  meta: { customer, masterOrg, extractOn, orgs, generated },
-  kpis: { totalApps, running, stopped, prod, sandbox, envs, uniqueApis, backends, expCount, procCount, sysCount, flows },
-  envRows: [ { name, type, total, running, stopped } ],
-  businessGroups: [ { name, total, running, prod, sandbox, experience, process, system, other } ],
-  targets: [],
-  layers: { experience: [], process: [], system: [] },
-  nodes: [],
-  edges: [ { source, target } ],
-  backends: [],
-  consumers: [],
-  reuse: [],
-  tagDist: [ [name, count] ],
-  clientApps: [],
-  inventory: []
-};
-// Node item shape: { key, label, kind, layer, tag, category, icon, in, out }
+```bash
+python "<BASE_DIR>/scripts/build_report.py" "<input.json>"
 ```
 
-### What the script does (so you can explain it)
+- Output: `{masterOrgName}_Mule_Architecture.html` (spaces → underscores), written **next to
+  the input JSON**. Use `-o <folder>` to write elsewhere, and `--keep-data` to also save the
+  DATA JSON for audit.
+- Use real paths for input and output. Don't route files through `/tmp`; on Windows, Git
+  Bash's `/tmp` and Python's `/tmp` are different folders.
+- If it exits non-zero (`RECONCILIATION FAILED` or a build_data error), **stop and report**.
+  Never ship a report with silently-lost edges.
 
-`scripts/build_data.py` implements the full v3.0.0 pipeline. You don't call these pieces
-individually — this is documentation for when the user asks how a number was derived:
+### 4. Review the output and tell the user
 
-- **clientGroup merge** — Anypoint emits one `clientGroup` node per API in large tenants.
-  All are merged into a single `consumer-merged` node labelled "N Client Apps"; their edges
-  remap to it.
-- **Backend consolidation (4-tier)** — each `http`/`other`/`db`/`sfdc` backend endpoint is
-  named by: Tier 1 brand (Salesforce, AWS DynamoDB, Okta…), Tier 2 product/partner
-  (FleetCor API, iConnectData, HotelbedS API…), Tier 3 domain extraction
-  (`apiprd.allstaronline.co.uk` → "Allstaronline API"), else a titleized stem. Full strategy
-  in `/Users/fernando.cedeno/Documents/claude/mule-general/BACKEND_CONSOLIDATION_STRATEGY.md`.
-- **Internal Mule APIs are never backends** — an `http` node whose hostname stem matches a
-  deployed Mule app (e.g. `cp-payments-sapi.…mule.fleetcor.com`) is remapped to that app's
-  node and excluded from the backend list. This removes double-counting noise.
-- **Edge remapping + reconciliation** — a single `{node_id → output_key}` map covers every
-  node, so no edge is ever orphaned. `flows` = unique consolidated edges; `flowsRaw` keeps
-  the raw count for audit. The script aborts if `kept + duplicates + self-loops + unresolved
-  ≠ raw`.
-- **Schema flexibility** — handles both the standard export (`production.dependencies`) and
-  nodes/edges-only exports. When `apps[]` is absent, every Mule node counts as one running
-  app so the Overview and the "0 stopped apps" message stay coherent.
-```
+`build_report.py` prints to stderr: the edge reconciliation, the benchmark line, and a
+summary (apps, APIs by layer, unclassified count, backends, flows, reuse metrics). Check:
 
-4. **Read the template file** at `<BASE_DIR>/mulesoft_arch_template.html`.
+- **Reconciliation:** `accounted for` must equal `raw edges`.
+- **Benchmark:** the line should read `N peers (OU+API band)`. If it says
+  `OU set too small … using all industries`, or `NOT AVAILABLE`, the customer is missing from
+  `customer_ou_map.json` or pandas is missing. Fix it and re-run. To add a customer, add
+  `"<lowercase name fragment>": ["<OU category>"]` using an OU value that exists in the
+  matrix's `OU` column, e.g. `"Technology, Media, Telecomm"`, `"Manufacturing, Auto, Energy"`
+  or `"Consumer and Business Services"`. Confirm the category with the user.
+- **Unclassified APIs:** a high count means the customer uses a naming convention the layer
+  rules don't recognise (see `layer_of_name` in `build_data.py`). Raise it with the user;
+  don't silently change the script.
+- **Backends:** a large generic backend such as "Cloudhub API" usually means internal Mule
+  calls aren't being remapped. Wrong or cryptic names can be fixed in `BRAND_MAP` /
+  `PRODUCT_MAP`.
 
-5. **Replace the placeholder** — find the line:
-   ```js
-   const DATA = /* DATA_PLACEHOLDER */ null;
-   ```
-   and replace it with the fully-populated DATA object.
+Then tell the user:
+- the output file path, and that they can open it by double-clicking (Windows `start "" "<file>"`,
+  macOS `open "<file>"`)
+- the customer name and key KPIs: total/running apps, environments, APIs by layer,
+  backends, flows, and production reuse rate vs the benchmark
+- any warnings from step 2 or step 4
 
-6. **Set the output filename** — `{CustomerName}_Mule_Architecture.html` where
-   `{CustomerName}` = `masterOrg.masterOrgName`.
+### Changing the script
 
-7. **Write the output file** next to the input JSON (or user-specified location).
+If a fix to `build_data.py` is needed, explain the problem and the proposed change and get
+the user's agreement first. After the change, re-run **every** export you have and diff the
+DATA output against the previous run. Report exactly which numbers moved for which customer,
+because fixes for one customer have changed others before.
 
-8. **Tell the user:**
-   - The output file path
-   - How to open it (`open <filename>` or double-click)
-   - Customer name + key KPIs (total apps, running, environments) for a quick sanity check
+---
+
+## What the pipeline does (for explaining numbers)
+
+Full definitions are in `prompt_mulesoft_architecture_html.md`. In brief:
+
+- **Layers.** A Mule node's `layer.label` is used if present. Otherwise the layer comes from
+  the name: `-eapi`/`exp-` → Experience; `-papi`/`prc-`/`-pro-` → Process; `-sapi`/`sys-` →
+  System; anything else goes to `layerOther`.
+- **Consumers.** All `clientGroup` nodes are merged into one "N Client Apps" node.
+  `clientApps` lists only the **production** client-group names. The export mixes sandbox
+  entries into `production.clientgroup`, and the production ones are in a nested list.
+- **Backends.** `http`/`other`/`db`/`sfdc` nodes are consolidated to business-friendly names
+  (brand → product → domain extraction → titleised label).
+- **Internal Mule calls.** An `http` node whose hostname is a deployed Mule app (including
+  CH2/RTF names with a `-xxxxxx` suffix) is remapped to that app and is never counted as a
+  backend.
+- **Flows.** Unique consolidated edges. `flowsRaw` is the raw edge count.
+- **Running.** Statuses `RUNNING`, `STARTED` and `SCALING`. **Environments** = distinct env
+  names that have apps deployed.
+- **Reuse metrics** (production graph). Consumers are incoming edges per Mule API, with
+  client groups expanded by `numberOfClientApplications`. Reuse rate =
+  (consumers − APIs with consumers) ÷ consumers. Reuse index = consumers ÷ APIs with
+  consumers. Reusability = APIs with 2+ consumers ÷ APIs with consumers.
+- **Benchmark.** The mean of `% Reuse rate (over all APIs)` across peers in the matrix's
+  `Data Tab`. Peers share the customer's OU(s) and have 0.35–2.5× its API count. With fewer
+  than 5 peers it broadens to the whole OU, then to all rows.
 
 ---
 
 ## Critical constraints
 
-- **Do not rewrite the template.** Only inject DATA.
-- **Zero external dependencies** — the template already satisfies this; don't add any.
-- **Single file output** — the written HTML is complete and self-contained.
-- **MuleSoft branding preserved** — the template handles this; do not modify logo or colors.
+- **Don't edit the template's design** (layout, CSS, branding, logo). Only DATA changes per customer.
+- **Zero external dependencies.** The output must be a single offline-ready HTML file.
+- **Don't hand-assemble the HTML or DATA.** Always use `build_report.py`.
+- **Customer data is confidential.** Don't paste export contents or client IDs into
+  external services.
 
 ---
 
 ## Sharing this skill
 
-To share with a colleague, copy the entire skill directory:
+Copy the **entire** `mulesoft-estate-report/` folder, including `scripts/` (both files) and
+`data/` (the matrix and the OU map), to `~/.claude/skills/mulesoft-estate-report/` on the
+recipient's machine. Without `data/`, the benchmark silently falls back to the generic 38%.
+No path editing is needed. The recipient also needs Python 3 with pandas and openpyxl.
 
-```
-~/.claude/skills/mulesoft-estate-report/
-  SKILL.md
-  mulesoft_arch_template.html
-  prompt_mulesoft_architecture_html.md
-  scripts/build_data.py
-```
-
-They place it at `~/.claude/skills/mulesoft-estate-report/` on their machine.
-No path editing required — all file references are resolved relative to the skill directory.
+The ANA Industry Data Matrix contains peer customer data, so only share it internally.
