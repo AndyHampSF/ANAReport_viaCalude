@@ -196,7 +196,7 @@ it doesn't need to know which platform they're on.
    0/1/2. This replaces the ad-hoc shell snippets SKILL.md used to need.
 4. **`--open`** opens the report in the default browser on any OS. Output filenames are
    sanitised to characters valid on every OS. Console messages are plain ASCII (Windows
-   showed literal `─` escape codes or garbled characters before).
+   showed literal `\u2500` escape codes or garbled characters before).
 5. **SKILL.md:** Claude finds a working Python itself (`python3` → `python` → `py -3`) and
    never asks the user about their OS.
 6. **`tools/regression_check.py`** replaces the bash-only regression loop.
