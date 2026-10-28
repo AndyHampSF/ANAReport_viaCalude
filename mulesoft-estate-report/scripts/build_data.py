@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-build_data.py — mulesoft-estate-report skill, DATA object builder (v3.4.0)
+build_data.py — mulesoft-estate-report skill, DATA object builder (v3.4.1)
 
 Turns an Anypoint network-graph JSON export into the DATA object the template
 injects. Written as a bundled script (not hand-authored per run) so the edge
@@ -42,6 +42,10 @@ v3.4.0 (2026-10-05):
   - No third-party dependencies: the Industry Matrix .xlsx is read with the
     standard library (read_xlsx_sheet). Verified identical to the previous
     pandas implementation. Console messages are plain ASCII.
+
+v3.4.1 (2026-10-28):
+  - PRODUCT_MAP: 'arval.api.' -> 'Arval (BNP Paribas)'. .bnpparibas is a brand
+    TLD, so domain extraction produced "Api API" / "Staging API" (JLR).
 
 Usage:
     python3 build_data.py <input.json>
@@ -97,6 +101,10 @@ PRODUCT_MAP = [
     ('microsoftonline', 'Microsoft Entra ID'),
     ('paybyphone',      'PayByPhone'),
     ('vertexcloud',     'Vertex (Tax)'),
+    # .bnpparibas is a brand TLD, so domain extraction yields "Api"/"Staging".
+    # Match 'arval.api.' exactly: JLR's own *-finance-arval-* Mule hostnames
+    # and api-ce.bnpparibas-pf.com (a different service) must not match.
+    ('arval.api.',      'Arval (BNP Paribas)'),
     ('corpayone',    'Corpay One'),
     ('corpay-one',   'Corpay One'),
     ('corpay',       'Corpay'),

@@ -1,6 +1,6 @@
 # Reference: MuleSoft Estate Report — Input, DATA Contract, Metrics and Tabs
 
-> **Status:** this is the current reference for skill v3.4.0 (build_data.py v3.4.0, updated
+> **Status:** this is the current reference for skill v3.4.1 (build_data.py v3.4.1, updated
 > 2026-10-05). It replaces the original "build the HTML by hand" brief.
 >
 > **Sources of truth:** `scripts/build_data.py` (the transformation) and
@@ -139,6 +139,9 @@ Mule app label, the node is remapped to that app and is **not** a backend.
    `login.microsoft`), then brands (Salesforce, Okta, AWS, Azure, SharePoint, SFTP, …,
    `gateway`).
 3. `PRODUCT_MAP`: known products/partners (Entra ID, PayByPhone, Vertex, Corpay, FleetCor…)
+   Overrides here are deliberately narrow. For example, `arval.api.` (not `arval`) maps
+   both Arval endpoints but leaves JLR's own `*-finance-arval-*` Mule hostnames and
+   `bnpparibas-pf.com` alone. Brand TLDs such as `.bnpparibas` defeat domain extraction.
 4. Domain extraction: `api.foo.co.uk` → "Foo API" (handles multi-part TLDs)
 5. Fallback: the label, titleised
 
