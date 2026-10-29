@@ -362,25 +362,57 @@ data. On a fresh clone there's no baseline, so take one *before* changing anythi
 
 ## Open items / ideas
 
-- **TalkTalk inventory gap.** Request a re-export that includes `apps[]`. Alternatively, rebuild
-  per-environment app counts from the graph nodes' `environmentId` (47 prod + 204 sandbox
-  Mule nodes across DEV/SIT/UAT/STG/PVE). Status still wouldn't be available.
-- **TalkTalk reuse rate (90.9%)** is driven by large client groups (46–80 apps on single APIs).
-  Sense-check it before presenting.
-- **TalkTalk:** `pro-whs-sys-som2-appointing-api-v1` is called in production but isn't deployed
-  there. It still shows as a "Cloudhub API" backend, and it's a talking point for the customer.
-- **JLR clean-up talking points:** 7 duplicate app deployments, and 3 orphaned apps in a deleted environment.
+**Data quality / methodology**
+- **Strikethrough meaning is assumed, not confirmed.** v3.5.0 treats a struck-through reuse
+  rate as "don't use". That's 175 of 334 matrix rows, so benchmarks now rest on 16–23 peers
+  per customer instead of 38–46, and they rose by 4–13 points. Confirm the convention with
+  the Sheet's owner before presenting benchmarks externally.
+- **Matrix refresh is manual.** The Google Workspace connection reads values but not
+  formatting, so it can't see strikethrough. Its file export also came back incomplete.
+  Refresh by downloading .xlsx from the Sheet (see SKILL.md). Each refresh changes the
+  matrix id in the build summary.
+- **The old spreadsheet process under-counts consumers.** The export lists at most 50 client
+  apps per API. TalkTalk has 4 APIs at that cap, so the old process's reuse figures are
+  lower than this script's.
+
+**Customer follow-ups**
+- **British Sugar:** the export has an empty production graph, because the estate is mostly
+  hybrid and the Monitoring agent probably isn't installed on its runtimes. Ask for the agent
+  to be installed, then re-export. Before reporting:
+  - add British Sugar to `customer_ou_map.json`. The industry still needs deciding (Retail/
+    Consumer Goods or Manufacturing).
+  - teach `layer_of_name` its `-ux-api` / `-proc-api` naming.
+- **TalkTalk reuse rate (91.5%)** is driven by four very large client groups (62–93 client
+  apps on single Experience APIs). Sense-check it before presenting.
+- **JLR talking points:**
+  - 7 duplicate app deployments
+  - 3 orphaned apps in a deleted environment
+  - `eu-jlr-sapi-smart-v2` (production) calls `dev.virtualearth.net`, a dev URL
+
+**Report / template**
+- **SGN's report** was regenerated on 29 Oct, but its export dates from 20 Apr. A fresher
+  export would update its app and flow figures.
 - **Business Groups section is hidden.** The template's Overview can show per-business-group
   cards (apps, running, prod/sandbox, layer mix), but only if `DATA.businessGroups` exists, and
   `build_data.py` doesn't produce it yet. The data is available (`apps[].orgid` → `orgs[]`).
   Adding it would make a new section appear in every multi-BG report.
+- **"Reuse by Business Group"** on the Reuse tab only appears when 2+ business groups have
+  production APIs. TalkTalk has 2 groups, but all its apps are in Wholesale, so the section is
+  hidden. That's by design.
 - **Fixed recommendation text** on the Insights tab, e.g. "All apps are at 0.1 vCore
-  replicas" and "HRIS sync", isn't derived from data. Sense-check it before presenting.
+  replicas" and "HRIS sync", isn't derived from data. It's wrong for TalkTalk, whose PROD
+  apps average about 0.5 vCores. Sense-check it before presenting. Possible improvement:
+  recommendations calculated from the data, like the ones in the Slackbot report.
 - **Unclassified ("other") Mule apps** are drawn in the Backend column of the Integration Flows
   graph. That's template behaviour.
 - **Sandbox reuse** is computed (`reuseAnalysis.sandbox`) but not shown anywhere in the report.
+
+**Housekeeping**
+- Superseded exports sit in the working folder: `TalkTalkold.json`, the Aug JLR export, and
+  the 28 Oct 10:33 JLR file without `apps[]`. `tools/regression_check.py` picks them all up.
+  Move them to a subfolder if only current exports should be checked.
 - The original strategy doc `BACKEND_CONSOLIDATION_STRATEGY.md` (on the original skill author's
-  machine) isn't in this repo. `prompt_mulesoft_architecture_html.md` §3.3 now documents the rules.
+  machine) isn't in this repo. `prompt_mulesoft_architecture_html.md` §3.3 documents the rules.
 - Optional: install the skill to `~/.claude/skills/` so it's triggerable by name.
 
 ---
@@ -405,6 +437,12 @@ data. On a fresh clone there's no baseline, so take one *before* changing anythi
 - **Never commit customer data** (exports, reports, `_regress/`). `.gitignore` handles this, so
   don't override it. The Industry Matrix is committed deliberately, and the repo must stay private.
 - When comparing app lists with other sources, key on `(appName, envId)`, not env name.
+- **Reports from other tools** (e.g. the Slackbot-generated TalkTalk HTML) aren't reliable
+  sources. That one mixed in a stale flow graph, made-up sandbox inventory, sandbox client
+  names and another customer's endpoint. Verify any figure against the export before using it.
+- **The Industry Matrix (`data/*.xlsx`)** is replaced by the user, not by Claude. Never
+  overwrite it with data fetched from the Google Sheet (see SKILL.md). After it changes, run
+  the regression check: only `benchmarkAvg` should move.
 - User preferences: collaborative (check before non-trivial or irreversible actions), concise
   but explain *why*, intermediate experience level, newish to Claude Code.
 - Remote: `https://github.com/AndyHampSF/ANAReport_viaCalude` (private), branch `main`.

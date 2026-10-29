@@ -222,9 +222,10 @@ for APIs with more than 50 client apps.
   the header and reads formula cells' cached values. Text in numeric columns counts as
   missing. This mirrors `pandas.read_excel` + `to_numeric(errors='coerce')`, which v3.3.0
   and earlier used. Means are summed in numpy's pairwise order (`_pairwise_sum`), so 4-dp
-  rounding is bit-identical. It was verified on the current matrix: the same 291 peer rows in
-  the same order, and 0 differences across 37,037 benchmark cases (every OU and OU pair ×
-  API counts 0–1000).
+  rounding is bit-identical. When it replaced pandas, it was verified on the matrix of the
+  time: the same 291 peer rows in the same order, and 0 differences across 37,037 benchmark
+  cases (every OU and OU pair × API counts 0–1000). It was re-verified on the 27 Oct 2026
+  matrix (334 rows, 0 mismatches) before strikethrough filtering was added.
 
 ---
 
