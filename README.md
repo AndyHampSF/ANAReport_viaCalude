@@ -178,6 +178,31 @@ its `numberOfClientApplications`.
 
 ## Change log
 
+### 2026-10-29: v3.5.0, ignore struck-through matrix rows
+
+- The Industry Matrix owners mark values that shouldn't be used with **strikethrough**. Two
+  rows had visibly bad reuse rates: Baldwin Insurance at `56.36`, read as 5,636%, and
+  California OES at `173.00%`. Both were struck through, but the script used them anyway.
+- `read_xlsx_sheet(..., with_strike=True)` now detects struck cells from the .xlsx styles.
+  The benchmark skips any row whose OU, API count or reuse-rate cell is struck: **175 of 334
+  rows** on the 27 Oct matrix, leaving **159 peers**. The build summary shows the matrix file
+  date and the number of struck rows.
+- **Benchmarks rise for everyone,** because the struck values skew low:
+
+  | Customer | Before | After | Peers (before → after) |
+  |---|---|---|---|
+  | JLR | 43.0% | 46.9% | 39 → 19 |
+  | SGN | 41.6% | 45.9% | 38 → 17 |
+  | Informa | 51.7% | 55.6% | 43 → 23 |
+  | TalkTalk | 45.2% | 58.1% | 46 → 16 |
+
+- **Regression:** all 8 local exports were re-run. Only `reuseAnalysis.benchmarkAvg` changed;
+  every other field is identical.
+- **Matrix source:** the master is the Google Sheet https://docs.google.com/spreadsheets/d/1JBSZ9jacHG6rIRxV9BDhKOFZoDphv5DuiFs7WVOrxUA/edit. It's still read from the local
+  .xlsx, because the Google Workspace connection can read values but not formatting, so it
+  can't see strikethrough. To refresh, use File → Download → .xlsx and replace the file in
+  `data/` (see SKILL.md).
+
 ### 2026-10-28: v3.4.1, backend name fix (JLR)
 
 - The new JLR export (28 Oct) showed a backend named **"Api API"** for `arval.api.bnpparibas`.
@@ -195,7 +220,7 @@ its `numberOfClientApplications`.
 - **Regression:** all 8 local exports were re-run. Only the two 28 Oct JLR files changed, and
   with the rename reversed their output is identical to before. No KPI moved.
 
-### 2026-10-05 (later): v3.4.0, platform independence
+### 2026-10-05: v3.4.0, platform independence
 
 The goal: the skill behaves identically on Windows, macOS and Linux, and the person running
 it doesn't need to know which platform they're on.
@@ -220,7 +245,7 @@ it doesn't need to know which platform they're on.
 
 No report content changed. All four customers' DATA is identical to v3.3.0.
 
-### 2026-10-05: v3.3.0, docs and one-command runner
+### 2026-10-05 (earlier): v3.3.0, docs and one-command runner
 
 Prompted by a check of whether an extracted copy of the skill behaves the same as the runs done here.
 
@@ -242,7 +267,7 @@ Prompted by a check of whether an extracted copy of the skill behaves the same a
 6. **Template comment updated** to say DATA is injected by `build_report.py`. Comment only,
    no rendering change.
 
-### 2026-10-05 (earlier): script v3.2.0 + fixes (TalkTalk onboarding and validation)
+### 2026-10-05 (first): script v3.2.0 + fixes (TalkTalk onboarding and validation)
 
 All changes were checked against all four exports. Only the intended numbers moved.
 
@@ -290,21 +315,15 @@ which embeds `const DATA = {...}` with an `apps[]` list. It compared well: 205 a
 
 ---
 
-## Customers processed (as of 2026-10-28)
+## Customers processed (as of 2026-10-29)
 
 | Customer | Export file (local) | Extracted | Notes |
 |---|---|---|---|
-| Jaguar Land Rover | `Jaguar Land Rover-network_graphs-28_10_2026_10_34_11.json` | 28 Oct 2026 | 185 apps / 140 running, 18 envs, 70 flows, 23 backends; reuse 25.8% vs 43.0% peers. Use the **10:34** file: the 10:33 export from the same session has no `apps[]`. The Aug export (`JLR Global 360-…17_08_2026…`) is superseded |
+| Jaguar Land Rover | `Jaguar Land Rover-network_graphs-28_10_2026_10_34_11.json` | 28 Oct 2026 | 185 apps / 140 running, 18 envs, 70 flows, 23 backends; reuse 25.8% vs 46.9% peers. Use the **10:34** file: the 10:33 export from the same session has no `apps[]`. The Aug export (`JLR Global 360-…17_08_2026…`) is superseded |
 | SGN | `SGN-network_graphs-20_04_2026_11_21_22.json` | 20 Apr 2026 | 149 apps, 3 envs, 94 flows |
 | Informa | `Global Support-network_graphs-30_06_2026_10_35_02.json` | 30 Jun 2026 | 618 apps / 401 running, 6 envs, 384 flows |
-| TalkTalk | `TalkTalk.json` | 8 Oct 2026 | 266 apps / 261 running, 6 envs, 119 flows; reuse 91.5% vs 45.2% peers (rebuilt 29 Oct with the 27 Oct matrix); business group "Wholesale". The 21 Sep export (`TalkTalkold.json`, no `apps[]`) is superseded |
+| TalkTalk | `TalkTalk.json` | 8 Oct 2026 | 266 apps / 261 running, 6 envs, 119 flows; reuse 91.5% vs 58.1% peers (rebuilt 29 Oct, struck rows ignored); business group "Wholesale". The 21 Sep export (`TalkTalkold.json`, no `apps[]`) is superseded |
 | British Sugar | `British Sugar-network_graphs-23_09_2026_09_30_26.json` | 23 Sep 2026 | **Not reportable:** the production graph is empty. The estate is mostly hybrid (`SERVER`), so the Anypoint Monitoring agent most likely isn't installed on its runtimes. Also not yet in `customer_ou_map.json`, and its `-ux-api`/`-proc-api` names aren't recognised by the layer rules |
-
----|---|---|---|
-| Jaguar Land Rover | `JLR Global 360-network_graphs-17_08_2026_06_49_41.json` | 17 Aug 2026 | 205 apps / 140 running, 18 envs, 64 flows |
-| SGN | `SGN-network_graphs-20_04_2026_11_21_22.json` | 20 Apr 2026 | 149 apps, 3 envs, 94 flows |
-| Informa | `Global Support-network_graphs-30_06_2026_10_35_02.json` | 30 Jun 2026 | 618 apps / 401 running, 6 envs, 384 flows |
-| TalkTalk | `TalkTalk.json` | 21 Sep 2026 | RTF, no `apps[]`; 47 prod Mule apps, 111 flows; business group "Wholesale" |
 
 ---
 

@@ -1,6 +1,6 @@
 # Reference: MuleSoft Estate Report — Input, DATA Contract, Metrics and Tabs
 
-> **Status:** this is the current reference for skill v3.4.1 (build_data.py v3.4.1, updated
+> **Status:** this is the current reference for skill v3.5.0 (build_data.py v3.5.0, updated
 > 2026-10-05). It replaces the original "build the HTML by hand" brief.
 >
 > **Sources of truth:** `scripts/build_data.py` (the transformation) and
@@ -196,9 +196,18 @@ for APIs with more than 50 client apps.
 
 ### 3.7 Peer benchmark (`compute_benchmark`)
 
-- **Source:** `data/ANA Industry Data Matrix - Golden Template.xlsx`, sheet `Data Tab`. It
-  uses the columns `OU`, `# APIs Total` and `% Reuse rate (over all APIs)`. Rows with 0 APIs
-  or a non-numeric rate are dropped.
+- **Source:** `data/ANA Industry Data Matrix - Golden Template.xlsx`, sheet `Data Tab`. This
+  is a downloaded copy of the master Google Sheet (https://docs.google.com/spreadsheets/d/1JBSZ9jacHG6rIRxV9BDhKOFZoDphv5DuiFs7WVOrxUA/edit); see SKILL.md, "Refreshing the
+  Industry Matrix". It uses the columns `OU`, `# APIs Total` and `% Reuse rate (over all APIs)`.
+  These rows are dropped:
+  - rows with 0 APIs or a non-numeric rate
+  - **rows where any of those three cells is formatted strikethrough**
+
+  Strikethrough is detected from `xl/styles.xml` (fonts with `<strike>`, mapped through
+  `cellXfs`) and from struck rich-text runs in shared strings. On the 27 Oct 2026 matrix,
+  175 of 334 otherwise-usable rows are struck. That includes invalid values such as
+  `56.36` (no % sign) and `173.00%`. Strikethrough in other columns (e.g. column O) doesn't
+  exclude a row.
 - **OU lookup:** `data/customer_ou_map.json` maps a lowercase name fragment to a list of OU
   values. It matches as a substring of `masterOrgName`, in either direction. Keys starting
   with `_` are ignored.

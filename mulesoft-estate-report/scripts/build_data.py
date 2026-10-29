@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-build_data.py — mulesoft-estate-report skill, DATA object builder (v3.4.1)
+build_data.py — mulesoft-estate-report skill, DATA object builder (v3.5.0)
 
 Turns an Anypoint network-graph JSON export into the DATA object the template
 injects. Written as a bundled script (not hand-authored per run) so the edge
@@ -47,6 +47,12 @@ v3.4.1 (2026-10-28):
   - PRODUCT_MAP: 'arval.api.' -> 'Arval (BNP Paribas)'. .bnpparibas is a brand
     TLD, so domain extraction produced "Api API" / "Staging API" (JLR).
 
+v3.5.0 (2026-10-29):
+  - Benchmark ignores matrix rows whose OU, '# APIs Total' or reuse-rate cell
+    is formatted strikethrough (the matrix owners strike out values that
+    shouldn't be used). Detected from the .xlsx styles; stdlib only.
+  - The source file, its date and the struck-row count are printed.
+
 Usage:
     python3 build_data.py <input.json>
 
@@ -54,6 +60,7 @@ Prints a human-readable reconciliation report to stderr and the DATA object as
 JSON to stdout. Normally invoked via build_report.py, which also injects DATA
 into the HTML template.
 """
+import datetime
 import json
 import os
 import re
@@ -466,18 +473,37 @@ def _col_index(cell_ref):
     return idx - 1
 
 
-def read_xlsx_sheet(path, sheet_name):
+def _struck_styles(z, ns, ET):
+    """Indexes of cell styles (cellXfs) whose font is struck through."""
+    if 'xl/styles.xml' not in z.namelist():
+        return set()
+    st = ET.fromstring(z.read('xl/styles.xml'))
+    struck_fonts = set()
+    for i, f in enumerate(st.iterfind('m:fonts/m:font', ns)):
+        s = f.find('m:strike', ns)
+        if s is not None and s.get('val', '1') not in ('0', 'false'):
+            struck_fonts.add(i)
+    return {i for i, xf in enumerate(st.iterfind('m:cellXfs/m:xf', ns))
+            if int(xf.get('fontId', 0)) in struck_fonts}
+
+
+def read_xlsx_sheet(path, sheet_name, with_strike=False):
     """Read one worksheet of an .xlsx into a list of rows (lists of cell values).
 
     Standard library only (zipfile + ElementTree), so the skill needs no
     third-party packages on any OS. Values: float for numeric cells, str for
     text/error cells, None for empty. Formula cells yield their cached value
     (as Excel last saved it), matching pandas/openpyxl data_only behaviour.
+
+    with_strike=True also returns, per row, the set of column indexes whose
+    cell is formatted strikethrough (whole-cell font, or any struck rich-text
+    run): returns (rows, struck_rows).
     """
     import zipfile
     import xml.etree.ElementTree as ET
     ns = _XLSX_NS
     with zipfile.ZipFile(path) as z:
+        struck_xf = _struck_styles(z, ns, ET)
         wb = ET.fromstring(z.read('xl/workbook.xml'))
         rid = None
         for s in wb.iterfind('m:sheets/m:sheet', ns):
@@ -490,20 +516,26 @@ def read_xlsx_sheet(path, sheet_name):
                       if r.get('Id') == rid)
         sheet_path = target.lstrip('/') if target.startswith('/') else 'xl/' + target
 
-        shared = []
+        shared, shared_struck = [], set()
         if 'xl/sharedStrings.xml' in z.namelist():
-            for si in ET.fromstring(z.read('xl/sharedStrings.xml')).iterfind('m:si', ns):
+            for k, si in enumerate(ET.fromstring(z.read('xl/sharedStrings.xml')).iterfind('m:si', ns)):
                 # Plain <t>, or rich-text runs <r><t>; phonetic <rPh> runs are ignored.
                 parts = [t.text or '' for t in si.findall('m:t', ns)]
                 parts += [t.text or '' for t in si.findall('m:r/m:t', ns)]
                 shared.append(''.join(parts))
+                if any(s.get('val', '1') not in ('0', 'false')
+                       for s in si.findall('m:r/m:rPr/m:strike', ns)):
+                    shared_struck.add(k)
 
-        rows = []
+        rows, struck_rows = [], []
         for row in ET.fromstring(z.read(sheet_path)).iterfind('m:sheetData/m:row', ns):
-            vals = {}
+            vals, struck = {}, set()
             for c in row.iterfind('m:c', ns):
                 t = c.get('t', 'n')
                 v = c.find('m:v', ns)
+                if int(c.get('s', 0)) in struck_xf or (
+                        t == 's' and v is not None and v.text and int(v.text) in shared_struck):
+                    struck.add(_col_index(c.get('r')))
                 if t == 'inlineStr':
                     val = ''.join(x.text or '' for x in c.iter(f'{{{ns["m"]}}}t'))
                 elif v is None or v.text is None:
@@ -521,7 +553,8 @@ def read_xlsx_sheet(path, sheet_name):
             if vals:
                 width = max(vals) + 1
                 rows.append([vals.get(i) for i in range(width)])
-    return rows
+                struck_rows.append(struck)
+    return (rows, struck_rows) if with_strike else rows
 
 
 def _to_number(v):
@@ -564,13 +597,16 @@ def _pairwise_sum(a, lo=0, n=None):
     return _pairwise_sum(a, lo, n2) + _pairwise_sum(a, lo + n2, n - n2)
 
 
-def load_matrix_peers():
+def load_matrix_peers(report=None):
     """Return [(ou, apis_total, reuse_rate)] from the matrix's 'Data Tab'.
 
-    Rows with 0 / missing APIs or a non-numeric reuse rate are dropped.
-    Raises on a missing file or unexpected layout (caller reports it).
+    Rows with 0 / missing APIs or a non-numeric reuse rate are dropped, and so
+    are rows where the OU, API count or reuse rate cell is formatted
+    strikethrough - the matrix owners strike out values that shouldn't be
+    used. If `report` is a dict, it receives {'struck': n} (rows that would
+    otherwise have been used). Raises on a missing file or unexpected layout.
     """
-    rows = read_xlsx_sheet(_MATRIX_PATH, 'Data Tab')
+    rows, struck_rows = read_xlsx_sheet(_MATRIX_PATH, 'Data Tab', with_strike=True)
     header = [str(h) if h is not None else '' for h in rows[0]]
     want = {'OU': None, '# APIs Total': None, '% Reuse rate (over all APIs)': None}
     for i, h in enumerate(header):
@@ -581,13 +617,18 @@ def load_matrix_peers():
         raise KeyError(f'matrix columns not found: {missing}')
     i_ou, i_api, i_rate = want['OU'], want['# APIs Total'], want['% Reuse rate (over all APIs)']
 
-    peers = []
-    for r in rows[1:]:
+    peers, struck_count = [], 0
+    for r, struck in zip(rows[1:], struck_rows[1:]):
         cell = lambda i: r[i] if i < len(r) else None
         apis = _to_number(cell(i_api)) or 0.0
         rate = _to_number(cell(i_rate))
         if apis > 0 and rate is not None:
+            if struck & {i_ou, i_api, i_rate}:
+                struck_count += 1
+                continue
             peers.append((cell(i_ou), apis, rate))
+    if report is not None:
+        report['struck'] = struck_count
     return peers
 
 
@@ -605,10 +646,15 @@ def compute_benchmark(customer_name, customer_api_count):
         print(f'  benchmark: matrix not found at {_MATRIX_PATH} - skipping', file=sys.stderr)
         return None
     try:
-        df = load_matrix_peers()
+        info = {}
+        df = load_matrix_peers(info)
     except Exception as e:
         print(f'  benchmark: could not read matrix ({e}) - skipping', file=sys.stderr)
         return None
+    mtime = datetime.date.fromtimestamp(os.path.getmtime(_MATRIX_PATH)).isoformat()
+    print(f'  benchmark source: data/{os.path.basename(_MATRIX_PATH)} (file date {mtime}); '
+          f'{len(df)} usable peer rows, {info.get("struck", 0)} struck-through rows ignored',
+          file=sys.stderr)
 
     ous = _resolve_ous(customer_name)
 

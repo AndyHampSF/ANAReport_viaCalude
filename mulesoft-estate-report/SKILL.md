@@ -159,7 +159,28 @@ Full definitions are in `prompt_mulesoft_architecture_html.md`. In brief:
   consumers. Reusability = APIs with 2+ consumers ÷ APIs with consumers.
 - **Benchmark.** The mean of `% Reuse rate (over all APIs)` across peers in the matrix's
   `Data Tab`. Peers share the customer's OU(s) and have 0.35–2.5× its API count. With fewer
-  than 5 peers it broadens to the whole OU, then to all rows.
+  than 5 peers it broadens to the whole OU, then to all rows. **Rows whose OU, API count or
+  reuse-rate cell is formatted strikethrough are ignored**, because the matrix owners strike
+  out values that shouldn't be used.
+
+### Refreshing the Industry Matrix
+
+The master copy is a Google Sheet ("ANA Industry Data Matrix - Golden Template"):
+https://docs.google.com/spreadsheets/d/1JBSZ9jacHG6rIRxV9BDhKOFZoDphv5DuiFs7WVOrxUA/edit
+
+The script reads **only** the local copy, `data/ANA Industry Data Matrix - Golden Template.xlsx`.
+That's deliberate: strikethrough formatting survives only in an `.xlsx` downloaded from the
+Sheet. Values read through an API or a CSV export lose it, and with it the struck-out rows.
+
+- The summary always shows the matrix file's date. If the user mentions the Sheet has
+  changed, or the file looks old, suggest a refresh: open the Sheet, choose **File →
+  Download → Microsoft Excel (.xlsx)**, and save it over the file in `data/` with the
+  exact same name.
+- Don't try to fetch the Sheet yourself and overwrite the file with what you get back. A
+  connector that returns cell values, or a partial export, would silently drop the
+  strikethrough information.
+- After a refresh, run the regression check. Benchmarks will move for every customer.
+  Then commit the new .xlsx.
 
 ---
 
