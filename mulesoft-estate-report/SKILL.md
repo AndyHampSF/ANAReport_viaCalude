@@ -172,8 +172,10 @@ The script reads **only** the local copy, `data/ANA Industry Data Matrix - Golde
 That's deliberate: strikethrough formatting survives only in an `.xlsx` downloaded from the
 Sheet. Values read through an API or a CSV export lose it, and with it the struck-out rows.
 
-- The summary always shows the matrix file's date. If the user mentions the Sheet has
-  changed, or the file looks old, suggest a refresh: open the Sheet, choose **File →
+- The summary shows a short **matrix id**, a fingerprint of the file's contents. It's
+  the same on every machine and changes only when the file is replaced. (File dates aren't
+  used, because git resets them on checkout.) If the user mentions the Sheet has changed,
+  suggest a refresh: open the Sheet, choose **File →
   Download → Microsoft Excel (.xlsx)**, and save it over the file in `data/` with the
   exact same name.
 - Don't try to fetch the Sheet yourself and overwrite the file with what you get back. A

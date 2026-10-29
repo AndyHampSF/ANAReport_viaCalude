@@ -185,8 +185,10 @@ its `numberOfClientApplications`.
   California OES at `173.00%`. Both were struck through, but the script used them anyway.
 - `read_xlsx_sheet(..., with_strike=True)` now detects struck cells from the .xlsx styles.
   The benchmark skips any row whose OU, API count or reuse-rate cell is struck: **175 of 334
-  rows** on the 27 Oct matrix, leaving **159 peers**. The build summary shows the matrix file
-  date and the number of struck rows.
+  rows** on the 27 Oct matrix, leaving **159 peers**. The build summary shows a matrix
+  **id**, a fingerprint of the file's contents, and the number of struck rows. A file date
+  was tried first, but git resets file dates on checkout, so it differed between machines
+  (27 Oct on Windows, 29 Oct on a fresh Linux clone).
 - **Benchmarks rise for everyone,** because the struck values skew low:
 
   | Customer | Before | After | Peers (before → after) |

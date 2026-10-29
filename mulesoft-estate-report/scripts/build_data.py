@@ -51,7 +51,7 @@ v3.5.0 (2026-10-29):
   - Benchmark ignores matrix rows whose OU, '# APIs Total' or reuse-rate cell
     is formatted strikethrough (the matrix owners strike out values that
     shouldn't be used). Detected from the .xlsx styles; stdlib only.
-  - The source file, its date and the struck-row count are printed.
+  - The source file, a content fingerprint and the struck-row count are printed.
 
 Usage:
     python3 build_data.py <input.json>
@@ -60,7 +60,6 @@ Prints a human-readable reconciliation report to stderr and the DATA object as
 JSON to stdout. Normally invoked via build_report.py, which also injects DATA
 into the HTML template.
 """
-import datetime
 import json
 import os
 import re
@@ -651,8 +650,12 @@ def compute_benchmark(customer_name, customer_api_count):
     except Exception as e:
         print(f'  benchmark: could not read matrix ({e}) - skipping', file=sys.stderr)
         return None
-    mtime = datetime.date.fromtimestamp(os.path.getmtime(_MATRIX_PATH)).isoformat()
-    print(f'  benchmark source: data/{os.path.basename(_MATRIX_PATH)} (file date {mtime}); '
+    # Content fingerprint, not file date: a git checkout resets file dates and
+    # the downloaded .xlsx carries no saved-date metadata.
+    import hashlib
+    with open(_MATRIX_PATH, 'rb') as f:
+        fingerprint = hashlib.sha256(f.read()).hexdigest()[:8]
+    print(f'  benchmark source: data/{os.path.basename(_MATRIX_PATH)} [id {fingerprint}]; '
           f'{len(df)} usable peer rows, {info.get("struck", 0)} struck-through rows ignored',
           file=sys.stderr)
 

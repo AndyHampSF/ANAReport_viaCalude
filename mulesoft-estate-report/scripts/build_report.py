@@ -28,7 +28,7 @@ if sys.version_info < (3, 8):
     sys.exit('build_report.py needs Python 3.8 or newer (found %d.%d).' % sys.version_info[:2])
 
 import argparse
-import datetime
+import hashlib
 import json
 import os
 import re
@@ -192,9 +192,9 @@ def main():
     if reuse:
         log(f"  reuse (prod)   : rate {reuse['reuseRate']:.2%}, reusability {reuse['reusability']:.2%}, "
             f"index {reuse['reuseIndexApis']:.2f}")
-    matrix_date = (datetime.date.fromtimestamp(MATRIX.stat().st_mtime).isoformat()
-                   if MATRIX.exists() else None)
-    log('  benchmark avg  : ' + (f'{bench:.1%}  (Industry Matrix file dated {matrix_date}; '
+    matrix_id = (hashlib.sha256(MATRIX.read_bytes()).hexdigest()[:8]
+                 if MATRIX.exists() else None)
+    log('  benchmark avg  : ' + (f'{bench:.1%}  (Industry Matrix id {matrix_id}; '
                                  'struck-through rows ignored)' if bench is not None
                                  else 'NOT AVAILABLE (report falls back to 38% global)'))
     for w in warnings:
