@@ -199,6 +199,15 @@ its `numberOfClientApplications`.
   overlap, and highlighted on hover. Tested by clicking every node's name and just beside
   its dot, at Fit and 100% zoom: 72/72 for TalkTalk and 58/58 for JLR. No click selected
   the wrong node.
+- **Readable labels.** Circular-view names are larger (14px, up from 10.5px) and semibold,
+  and sit outside the layer arc so they never overlap it:
+  - The ring is sized to the label height and the label space to the longest name, so
+    **Fit** shows the text as large as possible.
+  - A prefix shared by most Mule apps (e.g. TalkTalk's `pro-whs-`) is dropped, with a
+    note saying so.
+  - Long names are shortened in the middle, so version suffixes like `-v1` / `-v2` stay
+    visible. Hovering shows the full name.
+  - Layer names sit beyond the labels, and the canvas is taller.
 - Template-only change: DATA identical for all 8 exports, and all four reports were
   regenerated. Tested in headless Chrome with toggle, select, walk, filter, search, fit, Esc,
   and the selection kept across a toggle.

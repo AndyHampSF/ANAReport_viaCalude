@@ -145,7 +145,7 @@ h2.sec{font-size:17px;color:var(--title);margin:0 0 4px;font-weight:700}
 .filt.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 #flowSearch{padding:5px 10px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:12px;min-width:160px;background:#fff}
 /* Canvas fills the available viewport height (min 480px); content scrolls inside. */
-.graph-scroll{overflow:auto;height:max(480px,calc(100vh - 230px));border-radius:0 0 8px 8px;position:relative;
+.graph-scroll{overflow:auto;height:max(560px,calc(100vh - 200px));border-radius:0 0 8px 8px;position:relative;
   cursor:grab;background:linear-gradient(#fff,#fff)}
 .graph-scroll.panning{cursor:grabbing;user-select:none}
 #flowsvg{display:block;margin:0 auto}
@@ -163,7 +163,7 @@ h2.sec{font-size:17px;color:var(--title);margin:0 0 4px;font-weight:700}
 .vbtn.active{background:var(--navy);color:#fff}
 .gedge.circ{stroke-width:1.1;opacity:.45}
 svg.dim .gedge.circ{opacity:.04}
-.gnode.circ .glabel{font-weight:500}
+.gnode.circ .glabel{font-weight:600}
 .gnode.circ:hover .glabel{font-weight:700}
 .gnode.circ .gdot{stroke:#fff;stroke-width:2}
 .gnode.circ .ghit{fill:transparent;pointer-events:all}
@@ -691,11 +691,28 @@ function layoutCircular(visibleNodes, byCol, COL_ORDER, COL_COLOR, visibleEdges)
   const groups = COL_ORDER.map(c => ({col:c, nodes:[...byCol[c]].sort((a,b)=>a.label.localeCompare(b.label))}))
                           .filter(g => g.nodes.length);
   const N = groups.reduce((t,g)=>t+g.nodes.length, 0) || 1;
-  const R = Math.max(240, Math.min(560, N * 6.2));          // ring radius scales with node count
-  const LBL = 185, M = 60;                                    // label space + margin
-  const W = 2*(R+LBL+M), H = W, cx = W/2, cy = H/2;
+  // Labels: drop a prefix most Mule apps share (e.g. "pro-whs-") and shorten long names in
+  // the middle so version suffixes (-v1/-v2) stay visible. The full name shows on hover.
+  const F = 14;                                               // label font size (viewBox units)
+  const mule = visibleNodes.filter(n => n.kind === 'mule'), pc = {};
+  mule.forEach(n => { const m = n.label.match(/^([^-]+-[^-]+-)/); if(m) pc[m[1]] = (pc[m[1]]||0) + 1; });
+  const topPfx = Object.entries(pc).sort((a,b) => b[1]-a[1])[0];
+  const PREFIX = (topPfx && mule.length >= 5 && topPfx[1] >= 0.6*mule.length) ? topPfx[0] : '';
+  const MAXC = 30;
+  const disp = n => {
+    const t = (PREFIX && n.kind === 'mule' && n.label.startsWith(PREFIX)) ? n.label.slice(PREFIX.length) : n.label;
+    return t.length > MAXC ? t.slice(0, 17) + '…' + t.slice(-(MAXC - 18)) : t;
+  };
+  const textW = t => 0.56 * F * t.length;                     // width estimate, semibold sans
   const GAP = 0.07;                                           // radians between layer arcs
   const step = (2*Math.PI - GAP*groups.length) / N;
+  // Ring just big enough for 1.25 × the font height between neighbouring labels; label
+  // space sized to the longest label, so the fitted view shows text as large as possible.
+  const R = Math.max(200, Math.min(620, 1.25 * F / step));
+  const LR = R + 27;                                          // labels start outside the layer arc
+  const LBL = 27 + 8 + Math.max(60, ...visibleNodes.map(n => textW(disp(n))));
+  const M = 44;                                               // outer margin (layer names)
+  const W = 2*(R+LBL+M), H = W, cx = W/2, cy = H/2;
   const ang = {}, hub = {};
   let a = -Math.PI/2 + GAP/2;                                 // start at 12 o'clock
   groups.forEach(g => {
@@ -727,9 +744,15 @@ function layoutCircular(visibleNodes, byCol, COL_ORDER, COL_COLOR, visibleEdges)
   // layer arcs + labels
   groups.forEach(g => {
     html += `<path d="${arcPath(R+16, g.a0, g.a1)}" fill="none" stroke="${ARC_COL[g.col]}" stroke-width="7" stroke-linecap="round"/>`;
-    const mid = (g.a0+g.a1)/2, lr = R + LBL + 22;
-    const lx = cx + lr*Math.cos(mid), ly = cy + lr*Math.sin(mid);
-    html += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="700" fill="#5F6B78" letter-spacing="0.8">${g.col.toUpperCase()} (${g.nodes.length})</text>`;
+    // Layer name just beyond the longest label, anchored away from the circle so it never
+    // sits on top of the labels; clamped inside the canvas.
+    const mid = (g.a0+g.a1)/2, lr = R + LBL + 22, name = `${g.col.toUpperCase()} (${g.nodes.length})`;
+    const cs = Math.cos(mid), sn = Math.sin(mid), gw = 0.68 * 15 * name.length;
+    const anchor = cs > 0.3 ? 'start' : cs < -0.3 ? 'end' : 'middle';
+    let lx = cx + lr*cs, ly = cy + lr*sn + (anchor === 'middle' ? (sn < 0 ? -6 : 10) : 0);
+    lx = anchor === 'start' ? Math.min(lx, W - gw - 6) : anchor === 'end' ? Math.max(lx, gw + 6) : Math.min(W - gw/2 - 6, Math.max(gw/2 + 6, lx));
+    ly = Math.min(H - 10, Math.max(14, ly));
+    html += `<text x="${lx}" y="${ly}" text-anchor="${anchor}" dominant-baseline="middle" font-size="15" font-weight="700" fill="#5F6B78" letter-spacing="0.8">${name}</text>`;
   });
   // edges (bundled splines)
   visibleEdges.forEach(e => {
@@ -750,17 +773,18 @@ function layoutCircular(visibleNodes, byCol, COL_ORDER, COL_COLOR, visibleEdges)
     if(ang[n.key] === undefined) return;
     const A = ang[n.key], col = colOf[n.key], deg = A*180/Math.PI;
     const [dx,dy] = pt(n.key, R), flip = Math.cos(A) < 0;
-    const [tx,ty] = pt(n.key, R + 12);
-    const lbl = n.label.length > 30 ? n.label.slice(0,29)+'…' : n.label;
+    const [tx,ty] = pt(n.key, LR);
+    const lbl = disp(n);
     // Invisible hit area from just inside the dot to the end of the label, as tall as the
     // gap to the neighbouring node at the ring, so the name is clickable and never overlaps.
-    const hitH = Math.max(8, Math.min(22, step*R - 1)), hitL = 12 + Math.min(LBL - 10, 6.2*lbl.length + 8);
+    const hitH = Math.max(8, Math.min(24, step*R - 1)), hitL = (LR - R) + textW(lbl) + 8;
     html += `<g class="gnode circ" data-key="${esc(n.key)}" data-label="${esc(n.label)}" data-layer="${esc(n.layer||col)}" data-in="${n.in||0}" data-out="${n.out||0}" data-tag="${esc(n.tag||'')}">
       <rect class="ghit" x="-10" y="${-hitH/2}" width="${hitL+10}" height="${hitH}" rx="4" transform="translate(${dx},${dy}) rotate(${deg})"/>
       <circle class="gdot" cx="${dx}" cy="${dy}" r="5" fill="${COL_COLOR[col]||'#7B8794'}"/>
-      <text class="glabel" font-size="10.5" transform="translate(${tx},${ty}) rotate(${flip?deg+180:deg})" text-anchor="${flip?'end':'start'}" dominant-baseline="middle">${esc(lbl)}</text>
+      <text class="glabel" style="font-size:${F}px" transform="translate(${tx},${ty}) rotate(${flip?deg+180:deg})" text-anchor="${flip?'end':'start'}" dominant-baseline="middle">${esc(lbl)}</text>
     </g>`;
   });
+  if(PREFIX) html += `<text x="16" y="${H - 14}" font-size="14" fill="#5F6B78">Names shown without the shared prefix “${esc(PREFIX)}”. Hover a node for its full name.</text>`;
   return {html, w: W, h: H};
 }
 
