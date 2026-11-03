@@ -4,8 +4,11 @@
 # Anypoint network-graph exports and intermediate DATA files
 /*.json
 
-# Generated customer reports
+# Generated customer reports (HTML and shareable PDF/other exports)
 /*.html
+/*.pdf
+/*.pptx
+/*.docx
 
 # Regression snapshots, old report copies, extracted third-party report data
 /_regress/

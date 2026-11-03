@@ -178,6 +178,22 @@ its `numberOfClientApplications`.
 
 ## Change log
 
+### 2026-11-03: click-to-pin navigation on the Integration Flows tab
+
+- Connections were only shown while hovering over a tile. **Clicking** a tile now pins its
+  connections: the tile is outlined, its links are drawn in navy, and everything else fades.
+  Click a highlighted neighbour to move the focus to it and follow a path through the
+  estate. Click the same tile again, click empty space, or press **Esc** to clear. Hovering
+  now only shows the tooltip, which says whether a click will show or clear the
+  connections. The pinned tile stays selected when the layer filter or search changes, as
+  long as it's still visible.
+- Template-only change (`mulesoft_arch_template.html`). The regression run showed DATA
+  identical for all 8 exports. All four customer reports were regenerated.
+- Tested in headless Chrome with simulated clicks: pin, walk to a neighbour, unpin, click
+  empty space, Esc, and pin surviving a search rebuild.
+- `.gitignore` now also excludes `/*.pdf`, `/*.pptx` and `/*.docx` in the repo root, so
+  shareable customer exports are never committed.
+
 ### 2026-10-29: v3.5.0, ignore struck-through matrix rows
 
 - The Industry Matrix owners mark values that shouldn't be used with **strikethrough**. Two

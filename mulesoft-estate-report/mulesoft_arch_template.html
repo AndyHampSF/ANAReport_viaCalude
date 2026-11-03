@@ -152,9 +152,11 @@ h2.sec{font-size:17px;color:var(--title);margin:0 0 4px;font-weight:700}
 svg.dim .gedge{opacity:.06}
 svg.dim .gnode{opacity:.18}
 svg.dim .gnode.hl{opacity:1}
-svg.dim .gedge.hl{opacity:.95;stroke-width:2.4}
+svg.dim .gedge.hl{opacity:1;stroke:#0A3E7E;stroke-width:2.2}
 .gnode{cursor:pointer;opacity:1;transition:.15s}
 .gnode .gcard{fill:#fff;stroke:var(--line);stroke-width:1}
+.gnode:hover .gcard{stroke:#9AA5B1}
+.gnode.sel .gcard{stroke:var(--navy);stroke-width:2}
 .flowtip{position:fixed;pointer-events:none;background:var(--navy);color:#fff;padding:8px 11px;border-radius:8px;
   font-size:11.5px;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;transition:.1s;z-index:99;max-width:240px;line-height:1.4}
 .flowtip b{color:#7FE9DF}
@@ -486,7 +488,7 @@ function renderFlows(){
   return `
   <div class="block">
     <h2 class="sec">Integration Flows</h2>
-    <p class="sec-desc">Every production dependency, laid out left-to-right by architectural role. Hover any node to isolate its connections. Use the layer filters to focus on one tier at a time.</p>
+    <p class="sec-desc">Every production dependency, laid out left-to-right by architectural role. Click any node to highlight its connections, then click a connected node to follow the path. Click it again, or press Esc, to clear. Use the layer filters to focus on one tier at a time.</p>
   </div>
   <div class="graph-wrap">
     <div class="graph-controls">
@@ -632,7 +634,7 @@ function renderIns(){
 }
 
 /* ─── STATIC: graph builder ─────────────────────────────────────────────── */
-let _graphFilter = 'all', _graphSearch = '';
+let _graphFilter = 'all', _graphSearch = '', _graphFocus = null;
 
 function buildGraph(){
   const svg = document.getElementById('flowsvg');
@@ -734,24 +736,50 @@ function buildGraph(){
   svg.innerHTML = html;
   if(countEl) countEl.textContent = `${visibleNodes.length} nodes · ${visibleEdges.length} edges`;
 
-  // interactions
+  // interactions — click a tile to pin its connections; click a highlighted
+  // neighbour to walk the graph; click it again, empty space, or Esc to clear.
+  // Hover only shows the tooltip.
   function hideTip(){ tip.style.opacity=0; }
-  svg.addEventListener('mouseleave', ()=>{ svg.classList.remove('dim'); svg.querySelectorAll('.hl').forEach(e=>e.classList.remove('hl')); hideTip(); });
+  function focusNode(key){
+    _graphFocus = key;
+    svg.querySelectorAll('.gnode.sel').forEach(n => n.classList.remove('sel'));
+    if(!key){ svg.classList.remove('dim'); svg.querySelectorAll('.hl').forEach(e=>e.classList.remove('hl')); return; }
+    svg.classList.add('dim');
+    const connKeys = new Set([key]);
+    svg.querySelectorAll('.gedge').forEach(e => {
+      const on = e.dataset.s===key || e.dataset.t===key;
+      e.classList.toggle('hl', on);
+      if(on){ connKeys.add(e.dataset.s); connKeys.add(e.dataset.t); }
+    });
+    svg.querySelectorAll('.gnode').forEach(n => {
+      n.classList.toggle('hl', connKeys.has(n.dataset.key));
+      n.classList.toggle('sel', n.dataset.key===key);
+    });
+  }
+  svg.addEventListener('mouseleave', hideTip);
+  svg.addEventListener('click', ev => { if(!ev.target.closest('.gnode')) focusNode(null); });
   svg.querySelectorAll('.gnode').forEach(g => {
+    g.addEventListener('click', ev => {
+      ev.stopPropagation();
+      focusNode(_graphFocus===g.dataset.key ? null : g.dataset.key);
+    });
     g.addEventListener('mouseenter', ev => {
-      const key = g.dataset.key;
-      svg.classList.add('dim');
-      const connKeys = new Set([key]);
-      svg.querySelectorAll('.gedge').forEach(e => {
-        if(e.dataset.s===key||e.dataset.t===key){ e.classList.add('hl'); connKeys.add(e.dataset.s); connKeys.add(e.dataset.t); }
-        else e.classList.remove('hl');
-      });
-      svg.querySelectorAll('.gnode').forEach(n => { n.classList.toggle('hl', connKeys.has(n.dataset.key)); });
-      tip.innerHTML = `<b>${esc(g.dataset.label)}</b><br>${g.dataset.layer}${g.dataset.tag?' · '+esc(g.dataset.tag):''}<br>In: ${g.dataset.in} · Out: ${g.dataset.out}`;
+      tip.innerHTML = `<b>${esc(g.dataset.label)}</b><br>${g.dataset.layer}${g.dataset.tag?' · '+esc(g.dataset.tag):''}<br>In: ${g.dataset.in} · Out: ${g.dataset.out}<br><span style="opacity:.75">Click to ${_graphFocus===g.dataset.key?'clear':'show connections'}</span>`;
       tip.style.opacity=1; tip.style.left=(ev.clientX+14)+'px'; tip.style.top=(ev.clientY-10)+'px';
     });
     g.addEventListener('mousemove', ev => { tip.style.left=(ev.clientX+14)+'px'; tip.style.top=(ev.clientY-10)+'px'; });
+    g.addEventListener('mouseleave', hideTip);
   });
+  if(!document.body.dataset.flowEsc){
+    document.body.dataset.flowEsc = '1';
+    document.addEventListener('keydown', ev => {
+      if(ev.key==='Escape' && document.getElementById('flowsvg')){ _graphFocus = null; buildGraph(); }
+    });
+  }
+  // keep the pinned selection across filter / search rebuilds (if still visible);
+  // otherwise make sure the graph isn't left dimmed by a previous selection
+  if(_graphFocus && visibleNodes.some(n => n.key===_graphFocus)) focusNode(_graphFocus);
+  else focusNode(null);
 
   // filter + search wiring (runs once per renderFlows)
   document.querySelectorAll('.filt').forEach(btn => {
