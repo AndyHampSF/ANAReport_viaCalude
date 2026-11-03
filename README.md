@@ -178,7 +178,27 @@ its `numberOfClientApplications`.
 
 ## Change log
 
-### 2026-11-03 (later): Integration Flows: arrows, direction colours, zoom, full-size canvas
+### 2026-11-03 (latest): Integration Flows: circular "edge bundling" view
+
+- New **Columns / Circular** toggle on the Integration Flows tab. **Circular** is a
+  hierarchical edge bundling layout:
+  - Nodes sit on a ring, grouped into coloured arcs for Consumer, Experience, Process,
+    System and Backend, with radial labels.
+  - Each connection is routed through its layers' hub points and bundled (β = 0.85), so
+    flows between the same two layers draw as one smooth bundle.
+- Everything from the column view works in both layouts:
+  - arrowheads
+  - click-to-pin with blue for calls and amber for called-by, and walking to a neighbour
+  - Esc
+  - layer filter and search
+  - zoom and pan
+- The selected tile is kept when switching layouts. **Fit** fits the whole ring in circular
+  view, and the width in column view.
+- Template-only change: DATA identical for all 8 exports, and all four reports were
+  regenerated. Tested in headless Chrome with toggle, select, walk, filter, search, fit, Esc,
+  and the selection kept across a toggle.
+
+### 2026-11-03 (earlier): Integration Flows: arrows, direction colours, zoom, full-size canvas
 
 - **Direction:** every connection has an arrowhead pointing from the caller to the API it
   calls. Backward calls (e.g. a System API calling a Process API) and same-column calls are

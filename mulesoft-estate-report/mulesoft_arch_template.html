@@ -148,7 +148,7 @@ h2.sec{font-size:17px;color:var(--title);margin:0 0 4px;font-weight:700}
 .graph-scroll{overflow:auto;height:max(480px,calc(100vh - 230px));border-radius:0 0 8px 8px;position:relative;
   cursor:grab;background:linear-gradient(#fff,#fff)}
 .graph-scroll.panning{cursor:grabbing;user-select:none}
-#flowsvg{display:block}
+#flowsvg{display:block;margin:0 auto}
 #flowsvg text{font-family:inherit}
 .zoom-ctl{display:flex;align-items:center;gap:4px}
 .zoom-ctl button{width:28px;height:26px;border:1px solid var(--line);background:#fff;border-radius:6px;font:inherit;
@@ -157,6 +157,17 @@ h2.sec{font-size:17px;color:var(--title);margin:0 0 4px;font-weight:700}
 .zoom-ctl button:hover{background:var(--band)}
 .zoom-ctl .zlvl{min-width:42px;text-align:center;font-weight:600;font-size:11.5px;color:var(--muted)}
 .dir-key{display:flex;gap:14px;align-items:center;font-size:11.5px;color:var(--muted);font-weight:600}
+.view-toggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-right:6px}
+.vbtn{background:#fff;border:0;padding:5px 11px;font:inherit;font-size:11.5px;font-weight:600;color:var(--ink);cursor:pointer}
+.vbtn + .vbtn{border-left:1px solid var(--line)}
+.vbtn.active{background:var(--navy);color:#fff}
+.gedge.circ{stroke-width:1.1;opacity:.45}
+svg.dim .gedge.circ{opacity:.04}
+.gnode.circ .glabel{font-weight:500}
+.gnode.circ:hover .glabel{font-weight:700}
+.gnode.circ .gdot{stroke:#fff;stroke-width:2}
+.gnode.circ.sel .gdot{stroke:var(--navy);stroke-width:2.5}
+.gnode.circ.sel .glabel{font-weight:700}
 .dir-key span{display:flex;align-items:center;gap:6px}
 .gnode rect,.gnode circle{transition:.15s}
 .gnode .glabel{font-size:10.5px;fill:var(--ink);font-weight:600;pointer-events:none}
@@ -502,7 +513,7 @@ function renderFlows(){
   return `
   <div class="block">
     <h2 class="sec">Integration Flows</h2>
-    <p class="sec-desc">Every production dependency, laid out left-to-right by architectural role. Arrows point from the caller to what it calls. Click any node to highlight its connections: <b style="color:#1E64B0">blue</b> for what it calls, <b style="color:#C77700">amber</b> for what calls it. Then click a connected node to follow the path. Click it again, or press Esc, to clear. Zoom with the buttons or Ctrl + mouse wheel, and drag the background to pan.</p>
+    <p class="sec-desc">Every production dependency, in two views: <b>Columns</b> (left to right by API-led layer) or <b>Circular</b> (hierarchical edge bundling, where flows between the same layers bundle together). Arrows point from the caller to what it calls. Click any node to highlight its connections: <b style="color:#1E64B0">blue</b> for what it calls, <b style="color:#C77700">amber</b> for what calls it. Then click a connected node to follow the path. Click it again, or press Esc, to clear. Zoom with the buttons or Ctrl + mouse wheel, and drag the background to pan.</p>
   </div>
   <div class="graph-wrap">
     <div class="graph-controls">
@@ -519,6 +530,10 @@ function renderFlows(){
       </div>
     </div>
     <div class="graph-controls" style="padding-top:0;border-top:1px solid var(--line);margin:0 14px 10px;padding-bottom:10px">
+      <div class="view-toggle" role="group" aria-label="Layout">
+        <button class="vbtn ${_graphView==='columns'?'active':''}" data-view="columns" title="Columns by API-led layer">▥ Columns</button>
+        <button class="vbtn ${_graphView==='circular'?'active':''}" data-view="circular" title="Hierarchical edge bundling">◯ Circular</button>
+      </div>
       <div class="flow-filters">
         <button class="filt active" data-layer="all">All layers</button>
         <button class="filt" data-layer="experience">Experience</button>
@@ -531,7 +546,7 @@ function renderFlows(){
         <button id="zoomOut" aria-label="Zoom out">−</button>
         <span class="zlvl" id="zoomLvl">100%</span>
         <button id="zoomIn" aria-label="Zoom in">+</button>
-        <button id="zoomFit" class="wide" aria-label="Fit to width">Fit width</button>
+        <button id="zoomFit" class="wide" aria-label="Fit to view">Fit</button>
         <button id="zoomReset" class="wide" aria-label="Actual size">100%</button>
       </div>
     </div>
@@ -659,8 +674,88 @@ function renderIns(){
 }
 
 /* ─── STATIC: graph builder ─────────────────────────────────────────────── */
-let _graphFilter = 'all', _graphSearch = '', _graphFocus = null, _graphZoom = null;
+let _graphFilter = 'all', _graphSearch = '', _graphFocus = null, _graphZoom = null, _graphView = 'columns';
 const ZOOM_MIN = 0.3, ZOOM_MAX = 2.5;
+
+/* Hierarchical edge bundling, circular layout.
+   Nodes sit on a ring grouped into layer arcs (Consumer → Experience → Process →
+   System → Backend). Each edge is routed through its layers' "hub" points between
+   the ring and the centre, then bundled toward the straight chord (β), so flows
+   between the same two layers draw as one smooth bundle. Same data, same classes
+   (.gnode / .gedge) as the column view, so click-to-pin, filter and search all work. */
+function layoutCircular(visibleNodes, byCol, COL_ORDER, COL_COLOR, visibleEdges){
+  const ARC_COL = {consumer:'#052D60', experience:'#1E64B0', process:'#0BA49B', system:'#5E66F9', backend:'#7B8794'};
+  const groups = COL_ORDER.map(c => ({col:c, nodes:[...byCol[c]].sort((a,b)=>a.label.localeCompare(b.label))}))
+                          .filter(g => g.nodes.length);
+  const N = groups.reduce((t,g)=>t+g.nodes.length, 0) || 1;
+  const R = Math.max(240, Math.min(560, N * 6.2));          // ring radius scales with node count
+  const LBL = 185, M = 60;                                    // label space + margin
+  const W = 2*(R+LBL+M), H = W, cx = W/2, cy = H/2;
+  const GAP = 0.07;                                           // radians between layer arcs
+  const step = (2*Math.PI - GAP*groups.length) / N;
+  const ang = {}, hub = {};
+  let a = -Math.PI/2 + GAP/2;                                 // start at 12 o'clock
+  groups.forEach(g => {
+    const a0 = a;
+    g.nodes.forEach(n => { ang[n.key] = a + step/2; a += step; });
+    g.a0 = a0; g.a1 = a; a += GAP;
+    const mid = (g.a0+g.a1)/2;
+    hub[g.col] = [cx + R*0.42*Math.cos(mid), cy + R*0.42*Math.sin(mid)];
+  });
+  const colOf = {};
+  groups.forEach(g => g.nodes.forEach(n => colOf[n.key] = g.col));
+  const pt = (k, r) => [cx + r*Math.cos(ang[k]), cy + r*Math.sin(ang[k])];
+  const arcPath = (r, a0, a1) => {
+    const [x0,y0] = [cx+r*Math.cos(a0), cy+r*Math.sin(a0)], [x1,y1] = [cx+r*Math.cos(a1), cy+r*Math.sin(a1)];
+    return `M${x0},${y0} A${r},${r} 0 ${a1-a0>Math.PI?1:0} 1 ${x1},${y1}`;
+  };
+  // Uniform Catmull-Rom → cubic Bézier through the given control points
+  const spline = P => {
+    let d = `M${P[0][0].toFixed(1)},${P[0][1].toFixed(1)}`;
+    for(let i=0;i<P.length-1;i++){
+      const p0=P[Math.max(0,i-1)], p1=P[i], p2=P[i+1], p3=P[Math.min(P.length-1,i+2)];
+      const c1=[p1[0]+(p2[0]-p0[0])/6, p1[1]+(p2[1]-p0[1])/6], c2=[p2[0]-(p3[0]-p1[0])/6, p2[1]-(p3[1]-p1[1])/6];
+      d += ` C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d;
+  };
+  const BETA = 0.85, RN = R - 10;                            // bundling strength; edge end radius (inside the dots)
+  let html = '';
+  // layer arcs + labels
+  groups.forEach(g => {
+    html += `<path d="${arcPath(R+16, g.a0, g.a1)}" fill="none" stroke="${ARC_COL[g.col]}" stroke-width="7" stroke-linecap="round"/>`;
+    const mid = (g.a0+g.a1)/2, lr = R + LBL + 22;
+    const lx = cx + lr*Math.cos(mid), ly = cy + lr*Math.sin(mid);
+    html += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="700" fill="#5F6B78" letter-spacing="0.8">${g.col.toUpperCase()} (${g.nodes.length})</text>`;
+  });
+  // edges (bundled splines)
+  visibleEdges.forEach(e => {
+    const s = DATA.nodes.find(n=>n.label===e.source), t = DATA.nodes.find(n=>n.label===e.target);
+    if(!s || !t || ang[s.key]===undefined || ang[t.key]===undefined) return;
+    const P0 = pt(s.key, RN), P3 = pt(t.key, RN);
+    const raw = [P0];
+    if(colOf[s.key] === colOf[t.key]) raw.push(hub[colOf[s.key]]);
+    else { raw.push(hub[colOf[s.key]]); raw.push([cx, cy]); raw.push(hub[colOf[t.key]]); }
+    raw.push(P3);
+    const L = raw.length - 1;
+    const P = raw.map((p,i) => (i===0||i===L) ? p :
+      [BETA*p[0] + (1-BETA)*(P0[0] + (P3[0]-P0[0])*i/L), BETA*p[1] + (1-BETA)*(P0[1] + (P3[1]-P0[1])*i/L)]);
+    html += `<path class="gedge circ" marker-end="url(#a-base)" data-bm="url(#a-base)" data-s="${esc(s.key)}" data-t="${esc(t.key)}" d="${spline(P)}"/>`;
+  });
+  // nodes: a dot on the ring + a radial label (flipped on the left half so it reads left-to-right)
+  visibleNodes.forEach(n => {
+    if(ang[n.key] === undefined) return;
+    const A = ang[n.key], col = colOf[n.key], deg = A*180/Math.PI;
+    const [dx,dy] = pt(n.key, R), flip = Math.cos(A) < 0;
+    const [tx,ty] = pt(n.key, R + 12);
+    const lbl = n.label.length > 30 ? n.label.slice(0,29)+'…' : n.label;
+    html += `<g class="gnode circ" data-key="${esc(n.key)}" data-label="${esc(n.label)}" data-layer="${esc(n.layer||col)}" data-in="${n.in||0}" data-out="${n.out||0}" data-tag="${esc(n.tag||'')}">
+      <circle class="gdot" cx="${dx}" cy="${dy}" r="5" fill="${COL_COLOR[col]||'#7B8794'}"/>
+      <text class="glabel" font-size="10.5" transform="translate(${tx},${ty}) rotate(${flip?deg+180:deg})" text-anchor="${flip?'end':'start'}" dominant-baseline="middle">${esc(lbl)}</text>
+    </g>`;
+  });
+  return {html, w: W, h: H};
+}
 
 function buildGraph(){
   const svg = document.getElementById('flowsvg');
@@ -708,77 +803,84 @@ function buildGraph(){
     (byCol[col]||byCol['backend']).push(n);
   });
 
-  const maxRows = Math.max(...COL_ORDER.map(c=>byCol[c].length), 1);
-  const totalW = COL_ORDER.length*(NW+HGAP) - HGAP + PAD*2;
-  const totalH = maxRows*(NH+VGAP) - VGAP + PAD*2 + HEADER;
-
-  // Natural size in viewBox units; the on-screen size is natural × zoom.
-  // First render fits the width of the canvas (never enlarging past 100%).
-  svg.setAttribute('viewBox',`0 0 ${totalW} ${totalH}`);
-  svg.dataset.w = totalW; svg.dataset.h = totalH;
-  const scroller = svg.parentElement;
-  if(_graphZoom === null){
-    const avail = (scroller.clientWidth || totalW) - 4;
-    _graphZoom = Math.max(ZOOM_MIN, Math.min(1, avail / totalW));
-  }
-  applyZoom(_graphZoom);
-
-  const pos = {};
-  COL_ORDER.forEach((col,ci) => {
-    const x = PAD + ci*(NW+HGAP);
-    byCol[col].forEach((n,ri) => {
-      pos[n.key] = {x, y: HEADER + PAD + ri*(NH+VGAP), col};
-    });
-  });
-
   // Arrowhead markers. context-stroke isn't supported everywhere, so one marker per state.
   let html = `<defs>${[['a-base','#B7C6D9'],['a-out','#1E64B0'],['a-in','#C77700']].map(([id,c]) =>
     `<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">` +
     `<path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`).join('')}</defs>`;
+  let totalW, totalH;
 
-  // column headers
-  COL_ORDER.forEach((col,ci) => {
-    const x = PAD + ci*(NW+HGAP);
-    const count = byCol[col].length;
-    if(!count) return;
-    html += `<text x="${x+NW/2}" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#7B8794" letter-spacing="0.6">${col.toUpperCase()} (${count})</text>`;
-  });
+  if(_graphView === 'circular'){
+    const c = layoutCircular(visibleNodes, byCol, COL_ORDER, COL_COLOR, visibleEdges);
+    html += c.html; totalW = c.w; totalH = c.h;
+  } else {
+    const maxRows = Math.max(...COL_ORDER.map(c=>byCol[c].length), 1);
+    totalW = COL_ORDER.length*(NW+HGAP) - HGAP + PAD*2;
+    totalH = maxRows*(NH+VGAP) - VGAP + PAD*2 + HEADER;
 
-  // edges
-  visibleEdges.forEach(e => {
-    const s = DATA.nodes.find(n=>n.label===e.source);
-    const t = DATA.nodes.find(n=>n.label===e.target);
-    if(!s||!t||!pos[s.key]||!pos[t.key]) return;
-    const p1=pos[s.key], p2=pos[t.key];
-    let d;
-    if(p1.x < p2.x){
-      // normal left-to-right: source's right edge -> target's left edge
-      const x1=p1.x+NW, y1=p1.y+NH/2, x2=p2.x-2, y2=p2.y+NH/2, cx=(x1+x2)/2;
-      d = `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`;
-    } else if(p1.x > p2.x){
-      // backwards (e.g. a System API calling a Process API): leave left, arrive on the right
-      const x1=p1.x, y1=p1.y+NH/2, x2=p2.x+NW+2, y2=p2.y+NH/2, cx=(x1+x2)/2;
-      d = `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`;
-    } else {
-      // same column: loop out to the right so the arrow stays visible
-      const x1=p1.x+NW, y1=p1.y+NH/2, x2=p2.x+NW+2, y2=p2.y+NH/2, bx=p1.x+NW+HGAP*0.6;
-      d = `M${x1},${y1} C${bx},${y1} ${bx},${y2} ${x2},${y2}`;
-    }
-    html += `<path class="gedge" marker-end="url(#a-base)" data-s="${esc(s.key)}" data-t="${esc(t.key)}" d="${d}"/>`;
-  });
+    const pos = {};
+    COL_ORDER.forEach((col,ci) => {
+      const x = PAD + ci*(NW+HGAP);
+      byCol[col].forEach((n,ri) => {
+        pos[n.key] = {x, y: HEADER + PAD + ri*(NH+VGAP), col};
+      });
+    });
 
-  // nodes
-  visibleNodes.forEach(n => {
-    const p = pos[n.key];
-    if(!p) return;
-    const color = COL_COLOR[p.col]||'#7B8794';
-    const lbl = n.label.length>26 ? n.label.slice(0,25)+'…' : n.label;
-    html += `<g class="gnode" data-key="${esc(n.key)}" data-label="${esc(n.label)}" data-layer="${esc(n.layer||p.col)}" data-in="${n.in||0}" data-out="${n.out||0}" data-tag="${esc(n.tag||'')}">
-      <rect class="gcard" x="${p.x}" y="${p.y}" width="${NW}" height="${NH}" rx="6"/>
-      <rect x="${p.x}" y="${p.y}" width="5" height="${NH}" rx="3" fill="${color}"/>
-      <text class="glabel" x="${p.x+17}" y="${p.y+NH/2+4.5}" font-size="11.5">${esc(lbl)}</text>
-    </g>`;
-  });
+    // column headers
+    COL_ORDER.forEach((col,ci) => {
+      const x = PAD + ci*(NW+HGAP);
+      const count = byCol[col].length;
+      if(!count) return;
+      html += `<text x="${x+NW/2}" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#7B8794" letter-spacing="0.6">${col.toUpperCase()} (${count})</text>`;
+    });
+
+    // edges
+    visibleEdges.forEach(e => {
+      const s = DATA.nodes.find(n=>n.label===e.source);
+      const t = DATA.nodes.find(n=>n.label===e.target);
+      if(!s||!t||!pos[s.key]||!pos[t.key]) return;
+      const p1=pos[s.key], p2=pos[t.key];
+      let d;
+      if(p1.x < p2.x){
+        // normal left-to-right: source's right edge -> target's left edge
+        const x1=p1.x+NW, y1=p1.y+NH/2, x2=p2.x-2, y2=p2.y+NH/2, cx=(x1+x2)/2;
+        d = `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`;
+      } else if(p1.x > p2.x){
+        // backwards (e.g. a System API calling a Process API): leave left, arrive on the right
+        const x1=p1.x, y1=p1.y+NH/2, x2=p2.x+NW+2, y2=p2.y+NH/2, cx=(x1+x2)/2;
+        d = `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`;
+      } else {
+        // same column: loop out to the right so the arrow stays visible
+        const x1=p1.x+NW, y1=p1.y+NH/2, x2=p2.x+NW+2, y2=p2.y+NH/2, bx=p1.x+NW+HGAP*0.6;
+        d = `M${x1},${y1} C${bx},${y1} ${bx},${y2} ${x2},${y2}`;
+      }
+      html += `<path class="gedge" marker-end="url(#a-base)" data-bm="url(#a-base)" data-s="${esc(s.key)}" data-t="${esc(t.key)}" d="${d}"/>`;
+    });
+
+    // nodes
+    visibleNodes.forEach(n => {
+      const p = pos[n.key];
+      if(!p) return;
+      const color = COL_COLOR[p.col]||'#7B8794';
+      const lbl = n.label.length>26 ? n.label.slice(0,25)+'…' : n.label;
+      html += `<g class="gnode" data-key="${esc(n.key)}" data-label="${esc(n.label)}" data-layer="${esc(n.layer||p.col)}" data-in="${n.in||0}" data-out="${n.out||0}" data-tag="${esc(n.tag||'')}">
+        <rect class="gcard" x="${p.x}" y="${p.y}" width="${NW}" height="${NH}" rx="6"/>
+        <rect x="${p.x}" y="${p.y}" width="5" height="${NH}" rx="3" fill="${color}"/>
+        <text class="glabel" x="${p.x+17}" y="${p.y+NH/2+4.5}" font-size="11.5">${esc(lbl)}</text>
+      </g>`;
+    });
+  }
+
+  // Natural size in viewBox units; the on-screen size is natural × zoom.
+  // First render: columns fit the width; the circle fits the whole canvas. Never above 100%.
+  svg.setAttribute('viewBox',`0 0 ${totalW} ${totalH}`);
+  svg.dataset.w = totalW; svg.dataset.h = totalH;
+  const scroller = svg.parentElement;
+  if(_graphZoom === null){
+    const aw = (scroller.clientWidth || totalW) - 4, ah = (scroller.clientHeight || totalH) - 4;
+    const fit = _graphView === 'circular' ? Math.min(aw/totalW, ah/totalH) : aw/totalW;
+    _graphZoom = Math.max(ZOOM_MIN, Math.min(1, fit));
+  }
+  applyZoom(_graphZoom);
 
   svg.innerHTML = html;
   if(countEl) countEl.textContent = `${visibleNodes.length} nodes · ${visibleEdges.length} edges`;
@@ -793,7 +895,7 @@ function buildGraph(){
     if(!key){
       svg.classList.remove('dim');
       svg.querySelectorAll('.hl').forEach(e=>e.classList.remove('hl'));
-      svg.querySelectorAll('.gedge').forEach(e => { e.classList.remove('out','in'); e.setAttribute('marker-end','url(#a-base)'); });
+      svg.querySelectorAll('.gedge').forEach(e => { e.classList.remove('out','in'); e.setAttribute('marker-end', e.dataset.bm || 'url(#a-base)'); });
       return;
     }
     svg.classList.add('dim');
@@ -801,7 +903,7 @@ function buildGraph(){
     svg.querySelectorAll('.gedge').forEach(e => {
       const out = e.dataset.s===key, inn = e.dataset.t===key;
       e.classList.toggle('out', out); e.classList.toggle('in', inn);
-      e.setAttribute('marker-end', out ? 'url(#a-out)' : inn ? 'url(#a-in)' : 'url(#a-base)');
+      e.setAttribute('marker-end', out ? 'url(#a-out)' : inn ? 'url(#a-in)' : (e.dataset.bm || 'url(#a-base)'));
       if(out || inn){ connKeys.add(e.dataset.s); connKeys.add(e.dataset.t); }
     });
     svg.querySelectorAll('.gnode').forEach(n => {
@@ -835,6 +937,15 @@ function buildGraph(){
   else focusNode(null);
 
   // filter + search wiring (runs once per renderFlows)
+  document.querySelectorAll('.vbtn').forEach(btn => {
+    if(btn.dataset.wired) return; btn.dataset.wired = '1';
+    btn.addEventListener('click', () => {
+      if(_graphView === btn.dataset.view) return;
+      _graphView = btn.dataset.view; _graphZoom = null;      // re-fit for the new layout
+      document.querySelectorAll('.vbtn').forEach(b => b.classList.toggle('active', b===btn));
+      buildGraph();
+    });
+  });
   document.querySelectorAll('.filt').forEach(btn => {
     btn.addEventListener('click', () => {
       _graphFilter = btn.dataset.layer;
@@ -871,8 +982,9 @@ function zoomFit(){
   const svg = document.getElementById('flowsvg');
   if(!svg) return;
   const sc = svg.parentElement;
-  // fit the five columns across the canvas; tall columns scroll vertically
-  applyZoom(Math.min((sc.clientWidth - 4) / +svg.dataset.w, 1));
+  // columns: fit the width (tall columns scroll); circular: fit the whole ring
+  const fw = (sc.clientWidth - 4) / +svg.dataset.w, fh = (sc.clientHeight - 4) / +svg.dataset.h;
+  applyZoom(Math.min(_graphView === 'circular' ? Math.min(fw, fh) : fw, 1));
   sc.scrollLeft = 0; sc.scrollTop = 0;
 }
 function wireZoom(){
