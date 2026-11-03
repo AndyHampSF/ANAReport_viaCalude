@@ -207,6 +207,10 @@ its `numberOfClientApplications`.
     note saying so.
   - Long names are shortened in the middle, so version suffixes like `-v1` / `-v2` stay
     visible. Hovering shows the full name.
+  - **Shortening only when it's worth it** (`shortName()`, both views): an ellipsis must
+    save at least **6 characters**, otherwise the full name is shown. Before this rule,
+    some TalkTalk names lost just 2 characters to an added "…". Now no TalkTalk label is
+    shortened in the circular view, and every shortened label saves 7+ characters.
   - Layer names sit beyond the labels, and the canvas is taller.
 - Template-only change: DATA identical for all 8 exports, and all four reports were
   regenerated. Tested in headless Chrome with toggle, select, walk, filter, search, fit, Esc,

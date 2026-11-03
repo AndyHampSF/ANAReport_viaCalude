@@ -677,6 +677,17 @@ function renderIns(){
 }
 
 /* ─── STATIC: graph builder ─────────────────────────────────────────────── */
+/* Shorten a name only when it's worth it: an ellipsis must save at least MIN_SAVE
+   characters, otherwise the full name is shown (dropping 2 chars for "…" helps nobody).
+   mode 'middle' keeps the end (e.g. -v1/-v2); 'end' keeps the start. */
+const MIN_SAVE = 6;
+function shortName(t, max, mode){
+  if(t.length - max < MIN_SAVE) return t;                      // not worth shortening
+  if(mode === 'end') return t.slice(0, max - 1) + '…';
+  const tail = Math.ceil((max - 1) * 0.4), head = max - 1 - tail;
+  return t.slice(0, head) + '…' + t.slice(-tail);
+}
+
 let _graphFilter = 'all', _graphSearch = '', _graphFocus = null, _graphZoom = null, _graphView = 'columns';
 const ZOOM_MIN = 0.3, ZOOM_MAX = 2.5;
 
@@ -701,7 +712,7 @@ function layoutCircular(visibleNodes, byCol, COL_ORDER, COL_COLOR, visibleEdges)
   const MAXC = 30;
   const disp = n => {
     const t = (PREFIX && n.kind === 'mule' && n.label.startsWith(PREFIX)) ? n.label.slice(PREFIX.length) : n.label;
-    return t.length > MAXC ? t.slice(0, 17) + '…' + t.slice(-(MAXC - 18)) : t;
+    return shortName(t, MAXC, 'middle');
   };
   const textW = t => 0.56 * F * t.length;                     // width estimate, semibold sans
   const GAP = 0.07;                                           // radians between layer arcs
@@ -892,7 +903,7 @@ function buildGraph(){
       const p = pos[n.key];
       if(!p) return;
       const color = COL_COLOR[p.col]||'#7B8794';
-      const lbl = n.label.length>26 ? n.label.slice(0,25)+'…' : n.label;
+      const lbl = shortName(n.label, 26, 'end');
       html += `<g class="gnode" data-key="${esc(n.key)}" data-label="${esc(n.label)}" data-layer="${esc(n.layer||p.col)}" data-in="${n.in||0}" data-out="${n.out||0}" data-tag="${esc(n.tag||'')}">
         <rect class="gcard" x="${p.x}" y="${p.y}" width="${NW}" height="${NH}" rx="6"/>
         <rect x="${p.x}" y="${p.y}" width="5" height="${NH}" rx="3" fill="${color}"/>
