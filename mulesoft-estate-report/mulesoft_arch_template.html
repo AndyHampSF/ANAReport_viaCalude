@@ -55,6 +55,7 @@ nav.tabs button.active .tico{opacity:1}
 
 /* ── Layout ─────────────────────────────────────────── */
 main{padding:28px 40px 60px;max-width:1400px;margin:0 auto}
+main.wide{max-width:none;padding-left:24px;padding-right:24px}
 .panel{display:none;animation:fade .25s ease}
 .panel.active{display:block}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -143,16 +144,29 @@ h2.sec{font-size:17px;color:var(--title);margin:0 0 4px;font-weight:700}
 .filt:hover{background:#E3EAF5}
 .filt.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 #flowSearch{padding:5px 10px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:12px;min-width:160px;background:#fff}
-.graph-scroll{overflow:auto;max-height:720px;border-radius:0 0 8px 8px}
+/* Canvas fills the available viewport height (min 480px); content scrolls inside. */
+.graph-scroll{overflow:auto;height:max(480px,calc(100vh - 230px));border-radius:0 0 8px 8px;position:relative;
+  cursor:grab;background:linear-gradient(#fff,#fff)}
+.graph-scroll.panning{cursor:grabbing;user-select:none}
 #flowsvg{display:block}
 #flowsvg text{font-family:inherit}
+.zoom-ctl{display:flex;align-items:center;gap:4px}
+.zoom-ctl button{width:28px;height:26px;border:1px solid var(--line);background:#fff;border-radius:6px;font:inherit;
+  font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;line-height:1}
+.zoom-ctl button.wide{width:auto;padding:0 9px;font-size:11.5px;font-weight:600}
+.zoom-ctl button:hover{background:var(--band)}
+.zoom-ctl .zlvl{min-width:42px;text-align:center;font-weight:600;font-size:11.5px;color:var(--muted)}
+.dir-key{display:flex;gap:14px;align-items:center;font-size:11.5px;color:var(--muted);font-weight:600}
+.dir-key span{display:flex;align-items:center;gap:6px}
 .gnode rect,.gnode circle{transition:.15s}
 .gnode .glabel{font-size:10.5px;fill:var(--ink);font-weight:600;pointer-events:none}
-.gedge{fill:none;stroke:#C4D2E4;stroke-width:1.3;transition:.15s;opacity:.55}
-svg.dim .gedge{opacity:.06}
+.gedge{fill:none;stroke:#B7C6D9;stroke-width:1.3;transition:.15s;opacity:.7}
+svg.dim .gedge{opacity:.05}
 svg.dim .gnode{opacity:.18}
 svg.dim .gnode.hl{opacity:1}
-svg.dim .gedge.hl{opacity:1;stroke:#0A3E7E;stroke-width:2.2}
+/* Selected tile: blue = calls (outgoing), amber = called by (incoming). Arrowheads carry direction too. */
+#flowsvg .gedge.out{opacity:1;stroke:#1E64B0;stroke-width:2.2}
+#flowsvg .gedge.in{opacity:1;stroke:#C77700;stroke-width:2.2}
 .gnode{cursor:pointer;opacity:1;transition:.15s}
 .gnode .gcard{fill:#fff;stroke:var(--line);stroke-width:1}
 .gnode:hover .gcard{stroke:#9AA5B1}
@@ -488,7 +502,7 @@ function renderFlows(){
   return `
   <div class="block">
     <h2 class="sec">Integration Flows</h2>
-    <p class="sec-desc">Every production dependency, laid out left-to-right by architectural role. Click any node to highlight its connections, then click a connected node to follow the path. Click it again, or press Esc, to clear. Use the layer filters to focus on one tier at a time.</p>
+    <p class="sec-desc">Every production dependency, laid out left-to-right by architectural role. Arrows point from the caller to what it calls. Click any node to highlight its connections: <b style="color:#1E64B0">blue</b> for what it calls, <b style="color:#C77700">amber</b> for what calls it. Then click a connected node to follow the path. Click it again, or press Esc, to clear. Zoom with the buttons or Ctrl + mouse wheel, and drag the background to pan.</p>
   </div>
   <div class="graph-wrap">
     <div class="graph-controls">
@@ -498,6 +512,10 @@ function renderFlows(){
         <span><svg width="12" height="12"><rect width="12" height="12" rx="2" fill="var(--proc)"/></svg> Process</span>
         <span><svg width="12" height="12"><rect width="12" height="12" rx="2" fill="var(--sys)"/></svg> System</span>
         <span><svg width="12" height="12"><rect width="12" height="12" rx="2" fill="#7B8794"/></svg> Backend</span>
+      </div>
+      <div class="dir-key" style="margin-left:auto">
+        <span><svg width="30" height="10"><line x1="1" y1="5" x2="22" y2="5" stroke="#1E64B0" stroke-width="2.2"/><path d="M21,1 L29,5 L21,9 Z" fill="#1E64B0"/></svg> Calls</span>
+        <span><svg width="30" height="10"><line x1="1" y1="5" x2="22" y2="5" stroke="#C77700" stroke-width="2.2"/><path d="M21,1 L29,5 L21,9 Z" fill="#C77700"/></svg> Called by</span>
       </div>
     </div>
     <div class="graph-controls" style="padding-top:0;border-top:1px solid var(--line);margin:0 14px 10px;padding-bottom:10px">
@@ -509,6 +527,13 @@ function renderFlows(){
       </div>
       <input id="flowSearch" type="search" placeholder="Filter by name…">
       <span id="flowCount" style="margin-left:auto;font-weight:600;color:var(--muted);font-size:11.5px"></span>
+      <div class="zoom-ctl" title="Zoom (Ctrl + mouse wheel also works)">
+        <button id="zoomOut" aria-label="Zoom out">−</button>
+        <span class="zlvl" id="zoomLvl">100%</span>
+        <button id="zoomIn" aria-label="Zoom in">+</button>
+        <button id="zoomFit" class="wide" aria-label="Fit to width">Fit width</button>
+        <button id="zoomReset" class="wide" aria-label="Actual size">100%</button>
+      </div>
     </div>
     <div class="graph-scroll"><svg id="flowsvg"></svg></div>
   </div>`;
@@ -634,7 +659,8 @@ function renderIns(){
 }
 
 /* ─── STATIC: graph builder ─────────────────────────────────────────────── */
-let _graphFilter = 'all', _graphSearch = '', _graphFocus = null;
+let _graphFilter = 'all', _graphSearch = '', _graphFocus = null, _graphZoom = null;
+const ZOOM_MIN = 0.3, ZOOM_MAX = 2.5;
 
 function buildGraph(){
   const svg = document.getElementById('flowsvg');
@@ -686,10 +712,16 @@ function buildGraph(){
   const totalW = COL_ORDER.length*(NW+HGAP) - HGAP + PAD*2;
   const totalH = maxRows*(NH+VGAP) - VGAP + PAD*2 + HEADER;
 
-  // Render at natural pixel size — container scrolls
+  // Natural size in viewBox units; the on-screen size is natural × zoom.
+  // First render fits the width of the canvas (never enlarging past 100%).
   svg.setAttribute('viewBox',`0 0 ${totalW} ${totalH}`);
-  svg.setAttribute('width', totalW);
-  svg.setAttribute('height', totalH);
+  svg.dataset.w = totalW; svg.dataset.h = totalH;
+  const scroller = svg.parentElement;
+  if(_graphZoom === null){
+    const avail = (scroller.clientWidth || totalW) - 4;
+    _graphZoom = Math.max(ZOOM_MIN, Math.min(1, avail / totalW));
+  }
+  applyZoom(_graphZoom);
 
   const pos = {};
   COL_ORDER.forEach((col,ci) => {
@@ -699,7 +731,10 @@ function buildGraph(){
     });
   });
 
-  let html = '';
+  // Arrowhead markers. context-stroke isn't supported everywhere, so one marker per state.
+  let html = `<defs>${[['a-base','#B7C6D9'],['a-out','#1E64B0'],['a-in','#C77700']].map(([id,c]) =>
+    `<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">` +
+    `<path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`).join('')}</defs>`;
 
   // column headers
   COL_ORDER.forEach((col,ci) => {
@@ -715,9 +750,21 @@ function buildGraph(){
     const t = DATA.nodes.find(n=>n.label===e.target);
     if(!s||!t||!pos[s.key]||!pos[t.key]) return;
     const p1=pos[s.key], p2=pos[t.key];
-    const x1=p1.x+NW, y1=p1.y+NH/2, x2=p2.x, y2=p2.y+NH/2;
-    const cx=(x1+x2)/2;
-    html += `<path class="gedge" data-s="${esc(s.key)}" data-t="${esc(t.key)}" d="M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}"/>`;
+    let d;
+    if(p1.x < p2.x){
+      // normal left-to-right: source's right edge -> target's left edge
+      const x1=p1.x+NW, y1=p1.y+NH/2, x2=p2.x-2, y2=p2.y+NH/2, cx=(x1+x2)/2;
+      d = `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`;
+    } else if(p1.x > p2.x){
+      // backwards (e.g. a System API calling a Process API): leave left, arrive on the right
+      const x1=p1.x, y1=p1.y+NH/2, x2=p2.x+NW+2, y2=p2.y+NH/2, cx=(x1+x2)/2;
+      d = `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`;
+    } else {
+      // same column: loop out to the right so the arrow stays visible
+      const x1=p1.x+NW, y1=p1.y+NH/2, x2=p2.x+NW+2, y2=p2.y+NH/2, bx=p1.x+NW+HGAP*0.6;
+      d = `M${x1},${y1} C${bx},${y1} ${bx},${y2} ${x2},${y2}`;
+    }
+    html += `<path class="gedge" marker-end="url(#a-base)" data-s="${esc(s.key)}" data-t="${esc(t.key)}" d="${d}"/>`;
   });
 
   // nodes
@@ -743,13 +790,19 @@ function buildGraph(){
   function focusNode(key){
     _graphFocus = key;
     svg.querySelectorAll('.gnode.sel').forEach(n => n.classList.remove('sel'));
-    if(!key){ svg.classList.remove('dim'); svg.querySelectorAll('.hl').forEach(e=>e.classList.remove('hl')); return; }
+    if(!key){
+      svg.classList.remove('dim');
+      svg.querySelectorAll('.hl').forEach(e=>e.classList.remove('hl'));
+      svg.querySelectorAll('.gedge').forEach(e => { e.classList.remove('out','in'); e.setAttribute('marker-end','url(#a-base)'); });
+      return;
+    }
     svg.classList.add('dim');
     const connKeys = new Set([key]);
     svg.querySelectorAll('.gedge').forEach(e => {
-      const on = e.dataset.s===key || e.dataset.t===key;
-      e.classList.toggle('hl', on);
-      if(on){ connKeys.add(e.dataset.s); connKeys.add(e.dataset.t); }
+      const out = e.dataset.s===key, inn = e.dataset.t===key;
+      e.classList.toggle('out', out); e.classList.toggle('in', inn);
+      e.setAttribute('marker-end', out ? 'url(#a-out)' : inn ? 'url(#a-in)' : 'url(#a-base)');
+      if(out || inn){ connKeys.add(e.dataset.s); connKeys.add(e.dataset.t); }
     });
     svg.querySelectorAll('.gnode').forEach(n => {
       n.classList.toggle('hl', connKeys.has(n.dataset.key));
@@ -794,6 +847,70 @@ function buildGraph(){
     searchEl.dataset.wired = '1';
     searchEl.addEventListener('input', () => { _graphSearch = searchEl.value; buildGraph(); });
   }
+  wireZoom();
+}
+
+/* Zoom: scales the SVG's on-screen size; viewBox keeps it crisp. Zooming keeps the
+   point under the cursor (wheel) or the centre of the view (buttons) in place. */
+function applyZoom(z, anchor){
+  const svg = document.getElementById('flowsvg');
+  if(!svg) return;
+  const sc = svg.parentElement;
+  const old = _graphZoom || z;
+  z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+  const ax = anchor ? anchor.x : sc.clientWidth / 2, ay = anchor ? anchor.y : sc.clientHeight / 2;
+  const cx = (sc.scrollLeft + ax) / old, cy = (sc.scrollTop + ay) / old;
+  _graphZoom = z;
+  svg.setAttribute('width', Math.round(+svg.dataset.w * z));
+  svg.setAttribute('height', Math.round(+svg.dataset.h * z));
+  sc.scrollLeft = cx * z - ax; sc.scrollTop = cy * z - ay;
+  const lvl = document.getElementById('zoomLvl');
+  if(lvl) lvl.textContent = Math.round(z * 100) + '%';
+}
+function zoomFit(){
+  const svg = document.getElementById('flowsvg');
+  if(!svg) return;
+  const sc = svg.parentElement;
+  // fit the five columns across the canvas; tall columns scroll vertically
+  applyZoom(Math.min((sc.clientWidth - 4) / +svg.dataset.w, 1));
+  sc.scrollLeft = 0; sc.scrollTop = 0;
+}
+function wireZoom(){
+  const sc = document.querySelector('.graph-scroll');
+  if(!sc || sc.dataset.zoomWired) return;
+  sc.dataset.zoomWired = '1';
+  const step = f => applyZoom(_graphZoom * f);
+  document.getElementById('zoomIn').addEventListener('click', () => step(1.2));
+  document.getElementById('zoomOut').addEventListener('click', () => step(1 / 1.2));
+  document.getElementById('zoomReset').addEventListener('click', () => applyZoom(1));
+  document.getElementById('zoomFit').addEventListener('click', zoomFit);
+  // Ctrl/Cmd + wheel (and trackpad pinch) zooms around the cursor; a plain wheel scrolls.
+  sc.addEventListener('wheel', ev => {
+    if(!(ev.ctrlKey || ev.metaKey)) return;
+    ev.preventDefault();
+    const r = sc.getBoundingClientRect();
+    applyZoom(_graphZoom * Math.exp(-ev.deltaY * 0.0015), {x: ev.clientX - r.left, y: ev.clientY - r.top});
+  }, {passive:false});
+  // Drag the background to pan. Tiles stay clickable.
+  let drag = null;
+  sc.addEventListener('mousedown', ev => {
+    if(ev.button !== 0 || ev.target.closest('.gnode')) return;
+    drag = {x: ev.clientX, y: ev.clientY, l: sc.scrollLeft, t: sc.scrollTop, moved: false};
+    sc.classList.add('panning');
+  });
+  window.addEventListener('mousemove', ev => {
+    if(!drag) return;
+    const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+    if(Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+    sc.scrollLeft = drag.l - dx; sc.scrollTop = drag.t - dy;
+  });
+  window.addEventListener('mouseup', () => {
+    if(!drag) return;
+    sc.classList.remove('panning');
+    // a drag shouldn't count as a "click on empty space" that clears the selection
+    if(drag.moved) sc.addEventListener('click', e => e.stopPropagation(), {capture:true, once:true});
+    drag = null;
+  });
 }
 
 /* ─── STATIC: inventory wiring ──────────────────────────────────────────── */
@@ -1211,7 +1328,8 @@ function show(id){
   document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.id===id));
   const main = document.getElementById('main');
   main.innerHTML = `<div class="panel active" id="p-${id}">${R[id]()}</div>`;
-  if(id==='flows') requestAnimationFrame(buildGraph);
+  main.classList.toggle('wide', id==='flows');   // graph uses the full window width
+  if(id==='flows'){ _graphZoom = null; requestAnimationFrame(buildGraph); }
   if(id==='inv') wireInv();
   location.hash = id;
 }

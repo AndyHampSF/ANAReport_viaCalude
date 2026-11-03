@@ -178,6 +178,24 @@ its `numberOfClientApplications`.
 
 ## Change log
 
+### 2026-11-03 (later): Integration Flows: arrows, direction colours, zoom, full-size canvas
+
+- **Direction:** every connection has an arrowhead pointing from the caller to the API it
+  calls. Backward calls (e.g. a System API calling a Process API) and same-column calls are
+  routed so their arrow stays visible.
+- **Colours on selection:** clicking a tile now draws what it **calls in blue** (`#1E64B0`)
+  and what **calls it in amber** (`#C77700`), with matching arrowheads. A key sits next to
+  the layer legend. The pair passed the dataviz palette validator (CVD ΔE 25, contrast ≥ 3:1).
+- **Canvas:** the graph now fills the window's height (minimum 480px) and the Flows tab
+  uses the full window width, replacing the fixed 720px box. On open, it fits the width
+  automatically (never enlarging past 100%).
+- **Zoom:** − / + buttons, **Fit width**, **100%**, and **Ctrl/Cmd + mouse wheel** (or a
+  trackpad pinch), from 30% to 250%. Zooming keeps the point under the cursor in place.
+  **Drag the background to pan.** A drag doesn't clear the current selection. Zoom level
+  and selection survive layer-filter and search changes.
+- Template-only change: DATA identical for all 8 exports. All four customer reports were
+  regenerated. Tested in headless Chrome at 1400×900 and 1920×1080.
+
 ### 2026-11-03: click-to-pin navigation on the Integration Flows tab
 
 - Connections were only shown while hovering over a tile. **Clicking** a tile now pins its
