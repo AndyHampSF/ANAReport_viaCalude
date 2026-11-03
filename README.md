@@ -194,6 +194,11 @@ its `numberOfClientApplications`.
   - zoom and pan
 - The selected tile is kept when switching layouts. **Fit** fits the whole ring in circular
   view, and the width in column view.
+- **Click the name or the dot.** Each node in the circular view has an invisible click
+  area covering the dot and its label, sized to the gap between neighbours so they never
+  overlap, and highlighted on hover. Tested by clicking every node's name and just beside
+  its dot, at Fit and 100% zoom: 72/72 for TalkTalk and 58/58 for JLR. No click selected
+  the wrong node.
 - Template-only change: DATA identical for all 8 exports, and all four reports were
   regenerated. Tested in headless Chrome with toggle, select, walk, filter, search, fit, Esc,
   and the selection kept across a toggle.

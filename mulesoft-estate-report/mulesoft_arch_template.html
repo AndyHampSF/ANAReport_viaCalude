@@ -166,6 +166,9 @@ svg.dim .gedge.circ{opacity:.04}
 .gnode.circ .glabel{font-weight:500}
 .gnode.circ:hover .glabel{font-weight:700}
 .gnode.circ .gdot{stroke:#fff;stroke-width:2}
+.gnode.circ .ghit{fill:transparent;pointer-events:all}
+.gnode.circ:hover .ghit{fill:rgba(30,100,176,.07)}
+.gnode.circ:hover .gdot{r:6.5}
 .gnode.circ.sel .gdot{stroke:var(--navy);stroke-width:2.5}
 .gnode.circ.sel .glabel{font-weight:700}
 .dir-key span{display:flex;align-items:center;gap:6px}
@@ -749,7 +752,11 @@ function layoutCircular(visibleNodes, byCol, COL_ORDER, COL_COLOR, visibleEdges)
     const [dx,dy] = pt(n.key, R), flip = Math.cos(A) < 0;
     const [tx,ty] = pt(n.key, R + 12);
     const lbl = n.label.length > 30 ? n.label.slice(0,29)+'…' : n.label;
+    // Invisible hit area from just inside the dot to the end of the label, as tall as the
+    // gap to the neighbouring node at the ring, so the name is clickable and never overlaps.
+    const hitH = Math.max(8, Math.min(22, step*R - 1)), hitL = 12 + Math.min(LBL - 10, 6.2*lbl.length + 8);
     html += `<g class="gnode circ" data-key="${esc(n.key)}" data-label="${esc(n.label)}" data-layer="${esc(n.layer||col)}" data-in="${n.in||0}" data-out="${n.out||0}" data-tag="${esc(n.tag||'')}">
+      <rect class="ghit" x="-10" y="${-hitH/2}" width="${hitL+10}" height="${hitH}" rx="4" transform="translate(${dx},${dy}) rotate(${deg})"/>
       <circle class="gdot" cx="${dx}" cy="${dy}" r="5" fill="${COL_COLOR[col]||'#7B8794'}"/>
       <text class="glabel" font-size="10.5" transform="translate(${tx},${ty}) rotate(${flip?deg+180:deg})" text-anchor="${flip?'end':'start'}" dominant-baseline="middle">${esc(lbl)}</text>
     </g>`;
