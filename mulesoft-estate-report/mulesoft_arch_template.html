@@ -576,6 +576,7 @@ function renderInv(){
       <thead><tr>
         <th data-c="name">Application</th>
         <th data-c="layer">Layer</th>
+        <th data-c="bg">Business group</th>
         <th data-c="env">Environment</th>
         <th data-c="status">Status</th>
         <th data-c="target">Target</th>
@@ -623,10 +624,47 @@ function renderIns(){
   const reuseColor = sharedPct >= 40 ? 'var(--teal)' : sharedPct >= 20 ? 'var(--indigo)' : '#E6A23C';
   const healthPct = K.totalApps ? Math.round(K.running/K.totalApps*100) : 0;
   const maxIn = DATA.reuse[0] ? DATA.reuse[0].in : 1;
+  // Optional fields (added in build_data v3.6.0). Each card hides when its data is absent,
+  // so reports built with an older builder still render.
+  const ad = DATA.adoption, cf = DATA.confidence, dc = DATA.deploymentCoverage, rm = DATA.reuseMetrics;
+  const bandBg = {High:'#E7F6EF', Medium:'#FFF3E0', Low:'#FDECEA'}, bandFg = {High:'#0B7A4B', Medium:'#B9770E', Low:'#C0392B'};
+  const confChip = cf ? `<span style="display:inline-block;margin-left:10px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;vertical-align:middle;background:${bandBg[cf.band]};color:${bandFg[cf.band]}">Data confidence: ${cf.band}</span>` : '';
+  const confWhy = (cf && cf.reasons.length) ? `<div style="font-size:11px;color:var(--muted);margin-top:8px"><b>Why:</b> ${cf.reasons.map(esc).join(' · ')}</div>` : '';
+  const extraCards = [];
+  if(ad) extraCards.push(`
+    <div class="ins">
+      <h3><span class="ib" style="background:#EEF0FF">${TICO.arch.replace('class="tico"','')}</span>Platform Adoption</h3>
+      <div class="big">${ad.coveragePct}%</div>
+      <p>${ad.clientApps} client application${ad.clientApps===1?'':'s'} consume ${ad.consumedApis} of ${ad.totalApis} API-led APIs: the share of the catalogue in live use by business channels. Reuse shows how interconnected the APIs are; adoption shows how much of the catalogue real consumers use.</p>
+      ${ad.expTotal > 0 ? `<p style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)"><b style="color:var(--ink)">Consumer-facing coverage: ${ad.expCoveragePct}%</b>, ${ad.expConsumed} of ${ad.expTotal} Experience APIs consumed by client channels. Process and System APIs serve internal API-led reuse, so this figure often runs higher than overall coverage.</p>` : ''}
+    </div>`);
+  if(dc){
+    const covColor = dc.coveragePct >= 95 ? 'var(--teal)' : dc.coveragePct >= 85 ? 'var(--indigo)' : '#E6A23C';
+    const isoNames = dc.isolatedApps.slice(0,6).map(a=>esc(a.name)).join(', ') + (dc.isolatedApps.length > 6 ? `, +${dc.isolatedApps.length-6} more` : '');
+    extraCards.push(`
+    <div class="ins">
+      <h3><span class="ib" style="background:#EEF0FF"><svg viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" stroke-width="2"><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="3" fill="var(--indigo)" stroke="none"/></svg></span>Deployment Coverage</h3>
+      <div class="big" style="color:${covColor}">${dc.coveragePct}%</div>
+      <p>${dc.mapped} of ${dc.prodTotal} production apps appear in the dependency graph. ${dc.isolated > 0
+        ? `<b>${dc.isolated}</b> ${dc.isolated===1?'is':'are'} deployed with no mapped dependencies (${isoNames}). Check whether they are standalone by design (schedulers, test projects) or no longer needed.`
+        : 'Every production app is connected into the integration graph.'}</p>
+    </div>`);
+  }
+  if(rm) extraCards.push(`
+    <div class="ins">
+      <h3><span class="ib" style="background:#EEF0FF">${TICO.reuse.replace('class="tico"','')}</span>Peer-review metrics</h3>
+      <p style="margin-top:2px">The three readings used in MuleSoft peer-review decks, for like-for-like comparison:</p>
+      ${[['API-led %', rm.apiLedPct, `APIs with 1+ consumer (${rm.consumedApis}) ÷ all Mule apps (${rm.muleApps})`],
+         ['Reuse rate', rm.reuseRate, `Reuse instances (${rm.reuseInstances}) ÷ total consumers (${rm.totalConsumers})`],
+         ['Reusability', rm.reusability, `APIs with 2+ consumers (${rm.reusedApis}) ÷ all API-led APIs (${rm.apis})`]]
+        .map(([n,v,t])=>`<div class="reuse-row" title="${t}"><span class="rn">${n}</span><span class="rbar"><i style="width:${Math.min(v,100)}%"></i></span><span class="rv" style="width:auto;min-width:44px">${v}%</span></div>`).join('')}
+      <p style="font-size:11px;color:var(--muted)">Reusability here includes APIs with no consumers, so it can differ from the Reuse Analysis tab.</p>
+    </div>`);
   return `
   <div class="block">
-    <h2 class="sec">MuleSoft Insights</h2>
+    <h2 class="sec">MuleSoft Insights${confChip}</h2>
     <p class="sec-desc">Data-driven observations derived from the production dependency graph and inventory.</p>
+    ${confWhy}
   </div>
   <div class="insight-grid">
     <div class="ins">
@@ -644,6 +682,7 @@ function renderIns(){
       <div class="big">${DATA.clientApps.length}</div>
       <p>Registered OAuth client applications enforcing client-ID on Experience APIs. Recommend extending with SLA tiers and rate limits in API Manager for fine-grained throttling.</p>
     </div>
+    ${extraCards.join('')}
   </div>
   <div class="cols">
     <div class="card">
@@ -663,6 +702,8 @@ function renderIns(){
     <div class="card">
       <h3>${dico(TICO.ins)} Recommendations</h3>
       ${[
+        ...(ad && ad.byLayer.system > 0 ? [[`Review direct System-API consumption`, `${ad.byLayer.system} System API${ad.byLayer.system===1?' is':'s are'} consumed directly by client applications, bypassing the Experience and Process layers. Confirm this is intentional rather than point-to-point coupling.`]] : []),
+        ...(dc && dc.isolated > 0 ? [[`Triage isolated production apps`, `${dc.isolated} of ${dc.prodTotal} production apps have no mapped dependencies. Retire, document or connect them.`]] : []),
         [`Consolidate stopped apps`, K.stopped === 0 ? `All applications actively deployed. Your environment reflects strong operational governance and efficient resource allocation.` : `${K.stopped} NOT_RUNNING apps detected. Review and remove idle replicas — particularly in Development — to reclaim vCore allocation.`],
         [`Promote System-API reuse`, `Top reused System APIs: ${DATA.reuse.filter(n=>n.layer==='system').slice(0,3).map(n=>n.label).join(', ')||'N/A'}. Catalog them in Anypoint Exchange as canonical connectivity assets.`],
         [`Right-size vCore allocation`, `All apps are at 0.1 vCore replicas. Validate this covers peak throughput for data-heavy flows such as file transfers and HRIS sync batches.`],
@@ -1089,6 +1130,7 @@ function wireInv(){
     document.getElementById('invBody').innerHTML = rows.map(r=>`<tr>
       <td>${esc(r.name)}</td>
       <td><span class="lpill ${r.layer}">${r.layer}</span></td>
+      <td>${esc(r.bg||'—')}</td>
       <td>${esc(r.env)} <span class="etag ${r.envtype==='production'?'prod':'sandbox'}">${r.envtype}</span></td>
       <td><span class="st ${r.status}"><span class="dot"></span>${{RUNNING:'Running',STARTED:'Running',SCALING:'Running',NOT_RUNNING:'Stopped',UNDEPLOYED:'Undeployed'}[r.status]||r.status}</span></td>
       <td>${esc(r.target||'—')}</td>

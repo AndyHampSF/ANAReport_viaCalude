@@ -178,6 +178,27 @@ its `numberOfClientApplications`.
 
 ## Change log
 
+### 2026-11-05: v3.6.0, features adopted from a colleague's fork (v3.9.1)
+
+A colleague's fork (v3.9.1, 28 Sep 2026) was compared with this repo; see
+`docs/colleague_fork_comparison.md`. Their good features were brought in, computed on
+**our** corrected layer classification and client data. Their layer and backend logic was
+**not** adopted: it scores JLR at 0% reuse and brings back bugs fixed here.
+
+- **Business Groups section** on the Overview, one card per group: apps, running,
+  prod/sandbox and layer mix. Previously hidden because the data wasn't produced.
+- **Insights tab:**
+  - **data-confidence** chip (High/Medium/Low) with reasons
+  - **Platform Adoption** card (catalogue consumed by client apps, plus the Experience-only
+    share)
+  - **Deployment Coverage** card (production apps with no dependencies in the graph)
+  - **peer-review metrics** card (API-led %, reuse rate, reusability)
+  - two data-driven recommendations listed first
+- **Inventory:** new Business group column.
+- **Regression:** all 8 exports were re-run. With the new fields removed, every existing
+  DATA field is identical to before, so no existing number moved. All 7 tabs render
+  without JavaScript errors, and the circular-view click test still passes (72/72, 58/58).
+
 ### 2026-11-03 (latest): Integration Flows: circular "edge bundling" view
 
 - New **Columns / Circular** toggle on the Integration Flows tab. **Circular** is a
@@ -464,10 +485,6 @@ data. On a fresh clone there's no baseline, so take one *before* changing anythi
 **Report / template**
 - **SGN's report** was regenerated on 29 Oct, but its export dates from 20 Apr. A fresher
   export would update its app and flow figures.
-- **Business Groups section is hidden.** The template's Overview can show per-business-group
-  cards (apps, running, prod/sandbox, layer mix), but only if `DATA.businessGroups` exists, and
-  `build_data.py` doesn't produce it yet. The data is available (`apps[].orgid` → `orgs[]`).
-  Adding it would make a new section appear in every multi-BG report.
 - **"Reuse by Business Group"** on the Reuse tab only appears when 2+ business groups have
   production APIs. TalkTalk has 2 groups, but all its apps are in Wholesale, so the section is
   hidden. That's by design.

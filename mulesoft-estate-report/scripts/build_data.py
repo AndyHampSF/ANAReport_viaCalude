@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-build_data.py — mulesoft-estate-report skill, DATA object builder (v3.5.0)
+build_data.py — mulesoft-estate-report skill, DATA object builder (v3.6.0)
 
 Turns an Anypoint network-graph JSON export into the DATA object the template
 injects. Written as a bundled script (not hand-authored per run) so the edge
@@ -52,6 +52,16 @@ v3.5.0 (2026-10-29):
     is formatted strikethrough (the matrix owners strike out values that
     shouldn't be used). Detected from the .xlsx styles; stdlib only.
   - The source file, a content fingerprint and the struck-row count are printed.
+
+v3.6.0 (2026-11-05): features adopted from a colleague's fork (v3.9.1), computed on our
+  corrected layers and client data. All additive; existing DATA fields are unchanged:
+  - businessGroups: per-business-group cards (apps, running, prod/sandbox, layer mix).
+  - deploymentCoverage: production apps deployed vs present in the dependency graph
+    ("isolated" apps). Inventory rows also gain `bg` and `isolated`.
+  - adoption: share of the API-led catalogue consumed by client apps (+ Experience share).
+  - confidence: High/Medium/Low data-quality band with reasons (orphan rate, export shape).
+  - reuseMetrics: the MuleSoft peer-review three-metric framing (API-led %, reuse rate,
+    reusability) for comparison with peer-review decks.
 
 Usage:
     python3 build_data.py <input.json>
@@ -861,6 +871,8 @@ def main():
     # Build env lookup: envId -> envName
     env_lookup = {e['envId']: e.get('envName', e.get('envType', '')) for e in envs}
 
+    graph_labels = {v['label'] for v in mule_nodes}
+
     if apps:
         total_apps = len(apps)
         running = sum(1 for a in apps if a.get('status') in RUNNING_STATES)
@@ -904,6 +916,9 @@ def main():
                 'replica': replica,
                 'totalVcores': round(vcores * replica, 2),
                 'region': a.get('region', ''),
+                'bg': org_id_to_name.get(a.get('orgid', ''), '') or 'Unknown',
+                # production app with no node in the dependency graph
+                'isolated': a.get('envtype') == 'production' and a.get('appname', '') not in graph_labels,
             })
     else:
         total_apps = len(mule_nodes)
@@ -914,6 +929,111 @@ def main():
         env_count = 1
         env_rows = []
         inventory = []
+
+    # ── Business groups (Overview cards) - per org, from apps[] ──────────────
+    business_groups = []
+    if apps:
+        bg_agg = {}
+        for r in inventory:
+            b = bg_agg.setdefault(r['bg'], {'name': r['bg'], 'total': 0, 'running': 0, 'prod': 0,
+                                            'sandbox': 0, 'experience': 0, 'process': 0,
+                                            'system': 0, 'other': 0})
+            b['total'] += 1
+            b['running'] += r['status'] in RUNNING_STATES
+            if r['envtype'] == 'production':
+                b['prod'] += 1
+            elif r['envtype'] == 'sandbox':
+                b['sandbox'] += 1
+            b[r['layer'] if r['layer'] in ('experience', 'process', 'system') else 'other'] += 1
+        business_groups = sorted(bg_agg.values(), key=lambda x: -x['total'])
+
+    # ── Deployment coverage - prod apps deployed vs present in the graph ─────
+    deployment_coverage = None
+    if apps:
+        prod_layer = {}
+        for r in inventory:
+            if r['envtype'] == 'production':
+                prod_layer.setdefault(r['name'], r['layer'])
+        iso = sorted(set(prod_layer) - graph_labels, key=lambda n: (prod_layer[n], n))
+        iso_by_layer = Counter(prod_layer[n] for n in iso)
+        mapped = len(set(prod_layer) & graph_labels)
+        deployment_coverage = {
+            'prodTotal': len(prod_layer), 'mapped': mapped, 'isolated': len(iso),
+            'coveragePct': round(mapped / len(prod_layer) * 100, 1) if prod_layer else 0,
+            'byLayer': {k: iso_by_layer.get(k, 0) for k in ('experience', 'process', 'system', 'other')},
+            'isolatedApps': [{'name': n, 'layer': prod_layer[n]} for n in iso],
+        }
+
+    # ── Platform adoption - share of the API-led catalogue clients consume ──
+    API_LED = ('experience', 'process', 'system')
+    cg_clients = {n['id']: (n.get('numberOfClientApplications') or 1)
+                  for n in nodes if n.get('type') == 'clientGroup'}
+    api_clients = defaultdict(int)
+    for e in edges:
+        s_ = e.get('sourceId') or e.get('source')
+        t_ = e.get('targetId') or e.get('target')
+        if s_ in cg_clients:
+            tk = id_to_key.get(t_)
+            if tk in out_nodes and out_nodes[tk]['kind'] == 'mule':
+                api_clients[tk] += cg_clients[s_]
+    api_led_nodes = [v for v in mule_nodes if v['layer'] in API_LED]
+    adoption = None
+    if cg_ids:
+        consumed = [(k, c) for k, c in api_clients.items() if out_nodes[k]['layer'] in API_LED]
+        by_layer = Counter(out_nodes[k]['layer'] for k, _ in consumed)
+        exp_total = sum(1 for v in api_led_nodes if v['layer'] == 'experience')
+        adoption = {
+            'clientApps': total_clients,
+            'consumedApis': len(consumed), 'totalApis': len(api_led_nodes),
+            'coveragePct': round(len(consumed) / len(api_led_nodes) * 100) if api_led_nodes else 0,
+            'expConsumed': by_layer.get('experience', 0), 'expTotal': exp_total,
+            'expCoveragePct': round(by_layer.get('experience', 0) / exp_total * 100) if exp_total else 0,
+            'byLayer': {k: by_layer.get(k, 0) for k in API_LED},
+            'topConsumed': sorted(({'label': out_nodes[k]['label'], 'clients': c,
+                                    'layer': out_nodes[k]['layer']} for k, c in consumed),
+                                  key=lambda x: -x['clients'])[:8],
+        }
+
+    # ── Data confidence - how far to trust the data-driven metrics ──────────
+    orphans = sum(1 for v in api_led_nodes if v['in'] == 0)
+    orphan_rate = orphans / len(api_led_nodes) if api_led_nodes else 0.0
+    conf_reasons = []
+    if not apps:
+        conf_reasons.append('Topology-only export: no app deployment data, so status and '
+                            'environments come from the dependency graph, not measured values')
+    if orphan_rate > 0.25:
+        conf_reasons.append(f'{round(orphan_rate * 100)}% of APIs ({orphans}/{len(api_led_nodes)}) have no '
+                            'inbound dependency in the graph, so the dependency map may be incomplete')
+    if cg_ids:
+        conf_reasons.append('Client applications are pre-aggregated by Anypoint; per-application '
+                            'consumption is inferred from group counts')
+    if orphan_rate > 0.40:
+        band = 'Low'
+    elif (not apps) or orphan_rate > 0.25:
+        band = 'Medium'
+    else:
+        band = 'High'
+    confidence = {'band': band, 'orphanPct': round(orphan_rate * 100), 'reasons': conf_reasons}
+
+    # ── Peer-review metrics (MuleSoft peer-review deck framing) ──────────────
+    # apiLedPct = APIs with >=1 consumer / all Mule apps; reuseRate = reuse instances /
+    # consumers; reusability = APIs with >1 consumer / all API-led APIs (orphans included).
+    # Consumers count each client app, not the merged "N Client Apps" node.
+    def _consumers(v):
+        c = api_clients.get(v['key'], 0)
+        return v['in'] - (1 if c else 0) + c
+    cons = {v['key']: _consumers(v) for v in api_led_nodes}
+    ge1 = sum(1 for c in cons.values() if c >= 1)
+    gt1 = sum(1 for c in cons.values() if c > 1)
+    tot = sum(cons.values())
+    inst = sum(max(c - 1, 0) for c in cons.values())
+    reuse_metrics = {
+        'muleApps': len(mule_nodes), 'apis': len(api_led_nodes), 'consumedApis': ge1,
+        'reusedApis': gt1, 'totalConsumers': tot, 'reuseInstances': inst,
+        'apiLedPct': round(ge1 / len(mule_nodes) * 100, 1) if mule_nodes else 0,
+        'reuseRate': round(inst / tot * 100, 1) if tot else 0,
+        'reusability': round(gt1 / len(api_led_nodes) * 100, 1) if api_led_nodes else 0,
+    }
 
     # ── Reuse analysis (production graph + optional sandbox graph) ─────────────
     prod_dep_nodes = nodes   # already extracted from production section
@@ -985,6 +1105,11 @@ def main():
         )),
         'inventory': inventory,
         'layerOther': layer_other,
+        'businessGroups': business_groups,
+        'deploymentCoverage': deployment_coverage,
+        'adoption': adoption,
+        'confidence': confidence,
+        'reuseMetrics': reuse_metrics,
         'reuseAnalysis': {
             'production': reuse_prod,
             'sandbox': reuse_sandbox,

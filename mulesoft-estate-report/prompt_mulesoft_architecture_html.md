@@ -1,6 +1,6 @@
 # Reference: MuleSoft Estate Report — Input, DATA Contract, Metrics and Tabs
 
-> **Status:** this is the current reference for skill v3.5.0 (build_data.py v3.5.0, updated
+> **Status:** this is the current reference for skill v3.6.0 (build_data.py v3.6.0, updated
 > 2026-10-05). It replaces the original "build the HTML by hand" brief.
 >
 > **Sources of truth:** `scripts/build_data.py` (the transformation) and
@@ -268,10 +268,28 @@ const DATA = {
 // ReuseStats: see §3.6
 ```
 
-**The template also reads `DATA.businessGroups`**, an optional list of
-`[{name, total, running, prod, sandbox, experience, process, system, other}]` that drives
-the Overview's "Business Groups" cards. `build_data.py` **does not currently emit it**, so
-that section is hidden. It's a known gap; see the README's open items.
+**Added in v3.6.0** (from a colleague's fork, computed on our corrected layers). All are
+optional; the template hides each section when its field is absent or null:
+
+```js
+  businessGroups: [ { name, total, running, prod, sandbox, experience, process, system, other } ],
+  deploymentCoverage: { prodTotal, mapped, isolated, coveragePct, byLayer, isolatedApps:[{name,layer}] } | null,
+  adoption: { clientApps, consumedApis, totalApis, coveragePct, expConsumed, expTotal,
+              expCoveragePct, byLayer, topConsumed:[{label,clients,layer}] } | null,
+  confidence: { band: 'High'|'Medium'|'Low', orphanPct, reasons:[string] },
+  reuseMetrics: { muleApps, apis, consumedApis, reusedApis, totalConsumers, reuseInstances,
+                  apiLedPct, reuseRate, reusability },          // peer-review framing, %
+// inventory rows also carry: bg (business group), isolated (prod app absent from the graph)
+```
+
+- **deploymentCoverage** only exists when `apps[]` is present: production app names vs Mule
+  node labels in the production graph.
+- **adoption**: API-led APIs fed by at least one clientGroup ÷ all API-led APIs, and the same
+  for Experience APIs only.
+- **confidence**: the orphan rate is API-led APIs with in-degree 0. Low > 40%; Medium > 25%
+  or no `apps[]`; otherwise High.
+- **reuseMetrics** counts each client app as a consumer. Its reusability denominator
+  includes APIs with no consumers, so it differs from `reuseAnalysis`.reusability.
 
 ---
 
@@ -287,7 +305,7 @@ The footer is generic.
 | 3 | **Integration Flows** | Interactive SVG with two switchable layouts: **Columns**, 5 columns (Consumer · Experience · Process · System · Backend), and **Circular**, hierarchical edge bundling with nodes on a ring grouped into layer arcs and edges routed through layer hubs and bundled (β = 0.85). Both have arrowheads showing call direction; click-to-pin highlighting (click a node: blue = what it calls, amber = what calls it; click a highlighted neighbour to walk the graph; click again or Esc to clear; hover shows a tooltip only); zoom (−/+, Fit width, 100%, Ctrl + wheel, 30–250%) with drag-to-pan; a canvas that fills the window height and full width; a layer filter and name search. Nodes with layer `other` are drawn in the Backend column | `nodes`, `edges` |
 | 4 | **Application Inventory** | Searchable/sortable table filterable by env, layer and status (Running = RUNNING/STARTED/SCALING, Stopped = NOT_RUNNING, Undeployed) | `inventory`, `kpis` |
 | 5 | **Backend Systems** | Cards with icon, name, category (by icon) and in-degree "System-API connections" | `backends` |
-| 6 | **MuleSoft Insights** | Three cards: % of APIs with in-degree >1 (Mature ≥40%, Developing ≥20%), operational health (running ÷ total) and the client-app count. Also the top 8 most-shared APIs, and 4 recommendations | `layers`, `kpis`, `reuse`, `clientApps` |
+| 6 | **MuleSoft Insights** | A data-confidence chip with reasons; cards for: % of APIs with in-degree >1 (Mature ≥40%, Developing ≥20%), operational health, the client-app count, **Platform Adoption**, **Deployment Coverage** and **peer-review metrics** (each hides without data). Data-driven recommendations (direct System-API consumption, isolated production apps) are listed before the standard ones. Also the top 8 most-shared APIs, and 4 recommendations | `layers`, `kpis`, `reuse`, `clientApps` |
 | 7 | **Reuse Analysis** | Production reuse KPIs (rate, reusability, index, consumers, APIs, maturity stage); a consumer-distribution donut and by-layer bars; a metric breakdown table; a benchmark bar; a per-BG drill-down (only shown if `byBG` has 2+ groups); and a ranked list of the most consumed APIs | `reuseAnalysis` |
 
 **Maturity stage** (from the production reuse rate): Mature API-Led ≥ 50% · Industrialised ≥
