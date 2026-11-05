@@ -62,6 +62,9 @@ v3.6.0 (2026-11-05): features adopted from a colleague's fork (v3.9.1), computed
   - confidence: High/Medium/Low data-quality band with reasons (orphan rate, export shape).
   - reuseMetrics: the MuleSoft peer-review three-metric framing (API-led %, reuse rate,
     reusability) for comparison with peer-review decks.
+  - Topology-only exports (no apps[]) now derive envRows, inventory and a single
+    business group from the Mule node names (env token anywhere in the name), so the
+    env chart and inventory aren't blank. Standard exports are unaffected.
 
 Usage:
     python3 build_data.py <input.json>
@@ -412,6 +415,41 @@ def compute_reuse_stats(dep_nodes, dep_edges, apps, envtype_filter=None):
         'perApp':          per_app,
         'byLayer':         layer_stats,
     }
+
+
+# Environment tokens found in Mule app names (used only when apps[] is absent).
+ENV_NAME = {
+    'prod': 'Production', 'prd': 'Production', 'production': 'Production',
+    'sit': 'SIT', 'qa': 'QA', 'dev': 'Development', 'uat': 'UAT', 'test': 'Test',
+    'sandbox': 'Sandbox', 'nonprod': 'Non-Prod', 'stage': 'Staging', 'staging': 'Staging',
+    'stg': 'Staging', 'perf': 'Performance', 'pve': 'PVE', 'hotfix': 'Hotfix',
+}
+PROD_TOKENS = {'prod', 'prd', 'production'}
+
+
+def env_of_name(label):
+    """(env name, envtype) from a Mule app name, for topology-only exports.
+
+    Scans every hyphen token, so env-first (prod-us-acme-payments-sapi) and
+    org-first (mm-crm-salesforce-exp-prd-v1) names both resolve. When several
+    tokens match (a domain word like 'dev'), prefer the one just before a
+    trailing version segment, then a production token, otherwise the first.
+    Default: Production.
+    """
+    toks = (label or '').lower().split('-')
+    hits = [(i, t) for i, t in enumerate(toks) if t in ENV_NAME]
+    if not hits:
+        return 'Production', 'production'
+    if len(hits) > 1:
+        ver = [(i, t) for i, t in hits
+               if i + 1 < len(toks) and toks[i + 1][:1] == 'v' and toks[i + 1][1:].isdigit()]
+        # an explicit production token wins over a domain word like 'test'
+        # (network-test-pxc-prod is a production app)
+        prod_hits = [(i, t) for i, t in hits if t in PROD_TOKENS]
+        _, tok = (ver or prod_hits or hits)[0]
+    else:
+        _, tok = hits[0]
+    return ENV_NAME[tok], ('production' if tok in PROD_TOKENS else 'sandbox')
 
 
 def layer_of_name(name):
@@ -921,14 +959,28 @@ def main():
                 'isolated': a.get('envtype') == 'production' and a.get('appname', '') not in graph_labels,
             })
     else:
+        # Topology-only export (no apps[]): derive the env chart and inventory from the
+        # Mule node names so those views aren't blank. Status isn't in the export, so
+        # every app is shown as running (the data-confidence card flags this).
         total_apps = len(mule_nodes)
         running = total_apps
         stopped = 0
-        prod = 0
-        sandbox = 0
-        env_count = 1
-        env_rows = []
-        inventory = []
+        inventory, env_row_map = [], {}
+        for v in mule_nodes:
+            ename, etype = env_of_name(v['label'])
+            inventory.append({'name': v['label'], 'env': ename, 'envtype': etype,
+                              'layer': v['layer'] if v['layer'] in ('experience', 'process', 'system') else 'other',
+                              'status': 'RUNNING', 'target': '', 'vcores': '', 'replica': '',
+                              'totalVcores': '', 'region': '',
+                              'bg': master_org_name or 'Customer', 'isolated': False})
+            r = env_row_map.setdefault(ename, {'name': ename, 'type': etype, 'total': 0,
+                                                'running': 0, 'stopped': 0, 'runningVcores': 0})
+            r['total'] += 1
+            r['running'] += 1
+        env_rows = sorted(env_row_map.values(), key=lambda x: -x['total'])
+        prod = sum(1 for r in inventory if r['envtype'] == 'production')
+        sandbox = sum(1 for r in inventory if r['envtype'] == 'sandbox')
+        env_count = len(env_rows) or 1
 
     # ── Business groups (Overview cards) - per org, from apps[] ──────────────
     business_groups = []
@@ -946,6 +998,11 @@ def main():
                 b['sandbox'] += 1
             b[r['layer'] if r['layer'] in ('experience', 'process', 'system') else 'other'] += 1
         business_groups = sorted(bg_agg.values(), key=lambda x: -x['total'])
+    elif inventory:
+        business_groups = [{'name': master_org_name or 'Customer', 'total': total_apps,
+                            'running': running, 'prod': prod, 'sandbox': sandbox,
+                            'experience': len(LAYER['experience']), 'process': len(LAYER['process']),
+                            'system': len(LAYER['system']), 'other': len(layer_other)}]
 
     # ── Deployment coverage - prod apps deployed vs present in the graph ─────
     deployment_coverage = None

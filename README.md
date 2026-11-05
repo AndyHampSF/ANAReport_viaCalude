@@ -194,9 +194,29 @@ A colleague's fork (v3.9.1, 28 Sep 2026) was compared with this repo; see
   - **Deployment Coverage** card (production apps with no dependencies in the graph)
   - **peer-review metrics** card (API-led %, reuse rate, reusability)
   - two data-driven recommendations listed first
-- **Inventory:** new Business group column.
+- **Inventory:**
+  - new Business group column
+  - **isolated** pill on production apps that have no dependencies
+  - **Business group** filter, shown when there are 2+ groups
+  - **Isolated** filter
+- **API-Led Architecture tab:** a new **Integration & Batch Applications** section (apps
+  outside Experience/Process/System, with the backends they reach), plus ↗/↙ badges for
+  the calls they make.
+- **Overview:** a deployment-coverage note under the layer distribution.
+- **Topology-only exports** (no `apps[]`) now get an env chart, inventory and business group
+  derived from the app names. An explicit `prod` token wins over a domain word: for example,
+  `network-test-pxc-prod` counts as Production.
+- **Not adopted, because ours already does better:**
+  - their layer logic, which scores JLR at 0%
+  - their backend and hostname handling, which brings back the "Cloudhub API" and
+    "Api API" backends
+  - their client-name parsing, which includes sandbox names
+  - their env-suffix strip: our rules already classify their documented examples, and the
+    strip changes 0 of our 1,224 app names
 - **Regression:** all 8 exports were re-run. With the new fields removed, every existing
-  DATA field is identical to before, so no existing number moved. All 7 tabs render
+  DATA field is identical to before, so no existing number moved. The only exception is
+  the two superseded topology-only exports (`TalkTalkold.json`, the 28 Oct 10:33 JLR file),
+  which now get a derived env chart and inventory. All 7 tabs render
   without JavaScript errors, and the circular-view click test still passes (72/72, 58/58).
 
 ### 2026-11-03 (latest): Integration Flows: circular "edge bundling" view

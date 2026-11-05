@@ -119,6 +119,11 @@ h2.sec{font-size:17px;color:var(--title);margin:0 0 4px;font-weight:700}
 .lane.experience .side{background:var(--exp)}
 .lane.process .side{background:var(--proc)}
 .lane.system .side{background:var(--sys)}
+.lane.other .side{background:#9AA5B1}
+.api .badges{position:absolute;top:-7px;right:-7px;display:flex;gap:4px;align-items:center}
+.api .badges .badge{position:static}
+.api .badge.calls,.api .badge.fromint{background:var(--sys)}
+.isopill{display:inline-block;margin-left:8px;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;text-transform:uppercase;letter-spacing:.3px;color:#B9770E;background:#FFF3E0;border:1px solid #F0D9B0;vertical-align:1px}
 .lane .band{flex:1;background:var(--band);padding:14px;display:grid;
   grid-template-columns:repeat(auto-fill,minmax(224px,1fr));gap:10px;align-content:start;align-items:stretch}
 .api{background:#fff;border-radius:9px;box-shadow:var(--shadow-sm);padding:9px 12px 9px 9px;display:flex;align-items:center;gap:9px;
@@ -429,6 +434,7 @@ function renderOverview(){
         and ${K.sysCount} System APIs connecting backend systems.
         ${K.sysCount >= K.procCount ? 'A wide System tier signals strong reusable connectivity investment.' : 'Growth in reusable Process APIs will compound integration velocity over time.'}
       </p>
+      ${DATA.deploymentCoverage ? `<p style="font-size:11.5px;color:var(--muted);margin:12px 0 0;padding-top:10px;border-top:1px solid var(--line)"><b style="color:var(--text)">${DATA.deploymentCoverage.mapped} of ${DATA.deploymentCoverage.prodTotal}</b> production apps appear in the dependency graph${DATA.deploymentCoverage.isolated>0 ? `; <b style="color:#B9770E">${DATA.deploymentCoverage.isolated}</b> ${DATA.deploymentCoverage.isolated===1?'is':'are'} isolated (see MuleSoft Insights).` : ', full coverage.'}</p>` : ''}
     </div>
     <div class="card">
       <h3>${dico(TICO.inv)} Environment Inventory</h3>
@@ -469,19 +475,24 @@ function renderOverview(){
 }
 
 function renderArch(){
+  // How many Integration/Batch ("other") apps call each API: the inbound counterpart
+  // to the Integration section's outbound badge.
+  const intSources = new Set((DATA.layerOther||[]).map(n=>n.label));
+  const invokedByInt = {};
+  DATA.edges.forEach(e => { if(intSources.has(e.source)) invokedByInt[e.target] = (invokedByInt[e.target]||0) + 1; });
   const lane = (cls, title, sub, nodes) => `
     <div class="lane ${cls}">
       <div class="side">${title}<small>${sub} · ${nodes.length}</small></div>
       <div class="band">
-        ${nodes.map(n=>`
+        ${nodes.map(n=>{ const bi = invokedByInt[n.label] || 0; return `
           <div class="api">
             <div class="mi">${icon('mule')}</div>
             <div class="txt">
               <div class="nm">${esc(n.label)}</div>
               ${n.tag?`<span class="dtag">${esc(n.tag)}</span>`:''}
             </div>
-            ${n.in>1?`<div class="badge">${n.in}</div>`:''}
-          </div>`).join('')}
+            ${(n.in>1||bi>0)?`<div class="badges">${n.in>1?`<div class="badge">${n.in}</div>`:''}${bi>0?`<div class="badge fromint" title="Called by ${bi} integration/batch app${bi>1?'s':''}">&#8601;${bi}</div>`:''}</div>`:''}
+          </div>`;}).join('')}
       </div>
     </div>`;
 
@@ -508,6 +519,51 @@ function renderArch(){
       <span style="color:var(--proc)">&#9632; Process</span>
       <span style="color:var(--sys)">&#9632; System</span>
       <span><span style="display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;flex:0 0 auto">3</span>&thinsp;= called by 3+ APIs</span>
+      <span><span style="display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--sys);color:#fff;font-size:10px;font-weight:800;flex:0 0 auto">&#8601;2</span>&thinsp;= called by 2 integration/batch apps</span>
+    </div>
+  </div>
+  ${renderIntegrationLadder()}`;
+}
+
+/* Integration & Batch apps (the "other" layer): their own lane feeding the backends
+   they reach. Nothing calls these apps (batch jobs, schedulers, event subscribers),
+   so there is no consumer row. A badge counts the Mule APIs each one invokes. */
+function renderIntegrationLadder(){
+  const otherApps = DATA.layerOther || [];
+  if(!otherApps.length) return '';
+  const byLabel = {}; DATA.nodes.forEach(n => byLabel[n.label] = n);
+  const labels = new Set(otherApps.map(n => n.label));
+  const reached = new Set(), apiCalls = {};
+  DATA.edges.forEach(e => {
+    if(!labels.has(e.source)) return;
+    const t = byLabel[e.target]; if(!t) return;
+    if(t.kind === 'backend') reached.add(e.target);
+    else if(t.kind === 'mule') apiCalls[e.source] = (apiCalls[e.source]||0) + 1;
+  });
+  const backendNodes = DATA.backends.filter(b => reached.has(b.label));
+  const totalCalls = Object.values(apiCalls).reduce((a,b)=>a+b, 0);
+  const cards = otherApps.map(n => { const c = apiCalls[n.label] || 0; return `<div class="api">
+      <div class="mi">${icon('mule')}</div>
+      <div class="txt"><div class="nm">${esc(n.label)}</div>${n.tag?`<span class="dtag">${esc(n.tag)}</span>`:''}</div>
+      ${c>0?`<div class="badges"><div class="badge calls" title="Invokes ${c} Mule API${c>1?'s':''}">&#8599;${c}</div></div>`:''}
+    </div>`; }).join('');
+  return `
+  <div class="block" style="margin-top:26px">
+    <h2 class="sec">Integration &amp; Batch Applications</h2>
+    <p class="sec-desc">${otherApps.length} Mule application${otherApps.length===1?'':'s'} outside the API-led request path: batch jobs, scheduled integrations and event subscribers. Nothing calls them; they start work themselves and reach the backends below${totalCalls?`, calling Mule APIs ${totalCalls} time${totalCalls===1?'':'s'} along the way`:''}.</p>
+  </div>
+  <div class="arch">
+    <div class="lane other">
+      <div class="side">Integration<small>batch &amp; events · ${otherApps.length}</small></div>
+      <div class="band">${cards}</div>
+    </div>
+    <div class="conn"></div>
+    <div class="tier-row">
+      ${backendNodes.length ? backendNodes.map(b=>`<div class="node-ico"><div class="disc">${icon(b.icon)}</div><div class="cap">${esc(b.label)}</div></div>`).join('') : '<span style="font-size:12px;color:var(--muted)">No backend connections observed.</span>'}
+    </div>
+    <div class="archnote">
+      <span><span style="display:inline-flex;width:18px;height:18px;flex:0 0 auto">${MULE_SVG}</span> Integration / batch app</span>
+      <span><span style="display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--sys);color:#fff;font-size:10px;font-weight:800;flex:0 0 auto">&#8599;2</span>&thinsp;= invokes 2 Mule APIs</span>
     </div>
   </div>`;
 }
@@ -559,6 +615,10 @@ function renderFlows(){
 
 function renderInv(){
   const envSet = [...new Set(DATA.inventory.map(r=>r.env))].sort();
+  const bgSet = [...new Set(DATA.inventory.map(r=>r.bg).filter(Boolean))].sort();
+  const bgFilter = bgSet.length > 1 ? `<select id="invBg"><option value="">All Business Groups</option>${bgSet.map(b=>`<option>${esc(b)}</option>`).join('')}</select>` : '';
+  const isoFilter = (DATA.deploymentCoverage && DATA.deploymentCoverage.isolated > 0)
+    ? `<select id="invIso"><option value="">Mapped &amp; isolated</option><option value="isolated">Isolated only</option><option value="mapped">Mapped only</option></select>` : '';
   return `
   <div class="block">
     <h2 class="sec">Application Inventory</h2>
@@ -566,9 +626,11 @@ function renderInv(){
   </div>
   <div class="toolbar">
     <input type="search" id="invSearch" placeholder="Search applications…">
+    ${bgFilter}
     <select id="invEnv"><option value="">All Environments</option>${envSet.map(e=>`<option>${esc(e)}</option>`).join('')}</select>
     <select id="invLayer"><option value="">All Layers</option><option>experience</option><option>process</option><option>system</option><option>other</option></select>
     <select id="invStatus"><option value="">Any Status</option><option value="Running">Running</option><option value="Stopped">Stopped</option><option value="Undeployed">Undeployed</option></select>
+    ${isoFilter}
     <span class="count" id="invCount"></span>
   </div>
   <div class="tbl-wrap">
@@ -1116,10 +1178,14 @@ function wireInv(){
     const env=(document.getElementById('invEnv').value||'');
     const layer=(document.getElementById('invLayer').value||'');
     const status=(document.getElementById('invStatus').value||'');
+    const bg=(document.getElementById('invBg')?.value||'');
+    const iso=(document.getElementById('invIso')?.value||'');
     let rows = DATA.inventory.filter(r =>
       (!q||r.name.toLowerCase().includes(q)) &&
       (!env||r.env===env) &&
       (!layer||r.layer===layer) &&
+      (!bg||r.bg===bg) &&
+      (!iso||(iso==='isolated' ? r.isolated===true : !r.isolated)) &&
       (!status||({RUNNING:'Running',STARTED:'Running',SCALING:'Running',NOT_RUNNING:'Stopped',UNDEPLOYED:'Undeployed'}[r.status]||r.status)===status)
     );
     rows.sort((a,b)=>{
@@ -1128,7 +1194,7 @@ function wireInv(){
     });
     document.getElementById('invCount').textContent = `${rows.length} of ${DATA.inventory.length} shown`;
     document.getElementById('invBody').innerHTML = rows.map(r=>`<tr>
-      <td>${esc(r.name)}</td>
+      <td>${esc(r.name)}${r.isolated?`<span class="isopill" title="Deployed to production with no dependencies mapped in the graph">isolated</span>`:''}</td>
       <td><span class="lpill ${r.layer}">${r.layer}</span></td>
       <td>${esc(r.bg||'—')}</td>
       <td>${esc(r.env)} <span class="etag ${r.envtype==='production'?'prod':'sandbox'}">${r.envtype}</span></td>
@@ -1139,7 +1205,7 @@ function wireInv(){
       <td style="text-align:right;font-weight:600">${r.totalVcores||'—'}</td>
     </tr>`).join('');
   };
-  ['invSearch','invEnv','invLayer','invStatus'].forEach(id => document.getElementById(id)?.addEventListener('input',render));
+  ['invSearch','invBg','invEnv','invLayer','invStatus','invIso'].forEach(id => document.getElementById(id)?.addEventListener('input',render));
   document.querySelectorAll('#invTable thead th[data-c]').forEach(th => th.addEventListener('click',()=>{
     if(_invSort.c===th.dataset.c) _invSort.asc=!_invSort.asc; else{ _invSort.c=th.dataset.c; _invSort.asc=true; }
     render();
