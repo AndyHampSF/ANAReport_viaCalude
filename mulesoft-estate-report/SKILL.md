@@ -92,8 +92,9 @@ bash, zsh and PowerShell.
   add `--check`.
 - **Output:** `{masterOrgName}_Mule_Architecture.html` (characters unsafe in filenames →
   `_`), written next to the input JSON. Options: `-o <folder>` writes elsewhere,
-  `--keep-data` also saves the DATA JSON, and `--open` opens the report in the default
-  browser on any OS.
+  `--keep-data` also saves the DATA JSON, `--open` opens the report in the default
+  browser on any OS, and `--customer "Name"` overrides the customer name shown in the
+  report (default: `masterOrg.masterOrgName`).
 - **Exit codes:** 0 = ok, 1 = build failed (e.g. `RECONCILIATION FAILED`), 2 = invalid input.
   On a non-zero exit, **stop and report**. Nothing is written, and you must never ship a
   report with silently-lost edges.

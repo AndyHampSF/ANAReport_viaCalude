@@ -203,6 +203,8 @@ A colleague's fork (v3.9.1, 28 Sep 2026) was compared with this repo; see
   outside Experience/Process/System, with the backends they reach), plus ↗/↙ badges for
   the calls they make.
 - **Overview:** a deployment-coverage note under the layer distribution.
+- **`--customer NAME`** option on `build_report.py` (and `--customer=NAME` on
+  `build_data.py`) overrides the report's customer name, e.g. "TalkTalk Wholesale".
 - **Topology-only exports** (no `apps[]`) now get an env chart, inventory and business group
   derived from the app names. An explicit `prod` token wins over a domain word: for example,
   `network-test-pxc-prod` counts as Production.

@@ -11,13 +11,14 @@ same bytes are written on Windows, macOS and Linux (UTF-8, LF line endings),
 console output is plain ASCII, and the output filename is safe on every OS.
 
 Usage:
-    python3 build_report.py <input.json> [-o OUTPUT_DIR] [--keep-data] [--open]
+    python3 build_report.py <input.json> [-o OUTPUT_DIR] [--keep-data] [--open] [--customer NAME]
     python3 build_report.py <input.json> --check
 
     -o / --out-dir   where to write the HTML (default: same folder as the input)
     --keep-data      also write {name}_data.json (the raw DATA object) for audit
     --open           open the finished report in the default browser
     --check          validate the export only; don't build anything
+    --customer NAME  override the customer / report name (default: masterOrgName)
 
 Exit codes: 0 ok, 1 build failed (e.g. RECONCILIATION FAILED), 2 invalid input.
 Nothing is written unless the build succeeds.
@@ -133,6 +134,7 @@ def main():
     ap.add_argument('--keep-data', action='store_true', help='also write the DATA JSON')
     ap.add_argument('--open', action='store_true', help='open the report in the default browser')
     ap.add_argument('--check', action='store_true', help='validate the export only')
+    ap.add_argument('--customer', help='override the customer / report name (default: masterOrgName)')
     args = ap.parse_args()
     in_path = Path(args.input).expanduser().resolve()
 
@@ -152,7 +154,10 @@ def main():
 
     # 2. Build DATA. build_data.py's reconciliation report streams through stderr.
     env = dict(os.environ, PYTHONIOENCODING='utf-8')
-    proc = subprocess.run([sys.executable, str(BUILD_DATA), str(in_path)],
+    cmd = [sys.executable, str(BUILD_DATA), str(in_path)]
+    if args.customer:
+        cmd.append(f'--customer={args.customer}')
+    proc = subprocess.run(cmd,
                           stdout=subprocess.PIPE, env=env)
     if proc.returncode != 0:
         log(f'build_data.py failed (exit {proc.returncode}) - no report written.')

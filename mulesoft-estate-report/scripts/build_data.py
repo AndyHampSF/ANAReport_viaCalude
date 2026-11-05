@@ -62,12 +62,13 @@ v3.6.0 (2026-11-05): features adopted from a colleague's fork (v3.9.1), computed
   - confidence: High/Medium/Low data-quality band with reasons (orphan rate, export shape).
   - reuseMetrics: the MuleSoft peer-review three-metric framing (API-led %, reuse rate,
     reusability) for comparison with peer-review decks.
+  - --customer=NAME overrides the customer / report name (default: masterOrgName).
   - Topology-only exports (no apps[]) now derive envRows, inventory and a single
     business group from the Mule node names (env token anywhere in the name), so the
     env chart and inventory aren't blank. Standard exports are unaffected.
 
 Usage:
-    python3 build_data.py <input.json>
+    python3 build_data.py <input.json> [--customer=NAME]
 
 Prints a human-readable reconciliation report to stderr and the DATA object as
 JSON to stdout. Normally invoked via build_report.py, which also injects DATA
@@ -748,9 +749,16 @@ def strip_host(label):
 
 
 def main():
-    if len(sys.argv) < 2:
-        sys.exit('usage: build_data.py <input.json>')
-    path = sys.argv[1]
+    # --customer=NAME overrides the report/customer name (default: masterOrgName)
+    customer_override, positional = None, []
+    for a in sys.argv[1:]:
+        if a.startswith('--customer='):
+            customer_override = a.split('=', 1)[1].strip() or None
+        elif not a.startswith('--'):
+            positional.append(a)
+    if not positional:
+        sys.exit('usage: build_data.py <input.json> [--customer=NAME]')
+    path = positional[0]
     with open(path, encoding='utf-8') as f:
         raw = json.load(f)
 
@@ -759,7 +767,7 @@ def main():
     # Build org lookup from raw export (needed for per-BG breakdown)
     raw_orgs = raw.get('orgs', [])
     org_id_to_name = {o['orgId']: o.get('orgName', '') for o in raw_orgs if 'orgId' in o}
-    master_org_name = master.get('masterOrgName', '')
+    master_org_name = customer_override or master.get('masterOrgName', '')
 
     by_id = {n['id']: n for n in nodes}
     mule_labels = {n.get('label', '') for n in nodes if n.get('type') == 'mule'}
@@ -1125,8 +1133,8 @@ def main():
 
     data = {
         'meta': {
-            'customer': master.get('masterOrgName', 'Customer'),
-            'masterOrg': master.get('masterOrgName', ''),
+            'customer': master_org_name or 'Customer',
+            'masterOrg': master_org_name,
             'extractOn': master.get('extractOn', ''),
             'orgs': orgs,
             'generated': '',
