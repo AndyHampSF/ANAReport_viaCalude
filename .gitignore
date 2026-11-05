@@ -22,3 +22,6 @@
 # Python
 __pycache__/
 *.pyc
+
+# Colleague-pack example reports contain customer data
+/docs/colleague_pack/examples/

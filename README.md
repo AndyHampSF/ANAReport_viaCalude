@@ -178,6 +178,23 @@ its `numberOfClientApplications`.
 
 ## Change log
 
+### 2026-11-05 (later): upgrade pack for the colleague's fork
+
+`docs/colleague_pack/` lets a colleague upgrade their v3.9.1 fork with their own Claude Code:
+- **`README_FIRST.md`**: instructions for the human
+- **`UPGRADE_GUIDE_FOR_CLAUDE.md`**: the instructions their Claude follows. Each change (A1–A6
+  data fixes, B1–B5 features) is explained and offered for **apply / skip / explain more**,
+  verified after it's applied, and undone automatically if the check fails.
+- **`CHANGES_AT_A_GLANCE.md`**: a one-page summary with before/after numbers
+- **`examples/`**: before/after reports (TalkTalk, JLR). Git ignores this folder because it
+  contains customer data; send it separately.
+- **Dry-run tested:** a separate Claude session applied the guide to a copy of v3.9.1 and
+  reproduced this repo's numbers exactly. Its findings were then used to correct the guide:
+  - **A1:** remove the env-suffix strip, because it breaks `…-exp-prd-v1`.
+  - **B1:** spell out the exact reuse method, with a DATA schema and expected values.
+  - Clarify the rest: A3's sandbox merge, B2's definition of "usable", and how to run the
+    headless tests.
+
 ### 2026-11-05: v3.6.0, features adopted from a colleague's fork (v3.9.1)
 
 A colleague's fork (v3.9.1, 28 Sep 2026) was compared with this repo; see
@@ -551,6 +568,10 @@ data. On a fresh clone there's no baseline, so take one *before* changing anythi
 - **Reports from other tools** (e.g. the Slackbot-generated TalkTalk HTML) aren't reliable
   sources. That one mixed in a stale flow graph, made-up sandbox inventory, sandbox client
   names and another customer's endpoint. Verify any figure against the export before using it.
+- **Forks of this skill exist** (a colleague's v3.9.1). Their version numbers overlap ours
+  but mean different things. Compare any fork **behaviourally**, by building the same
+  exports with both versions in an isolated folder, never inside this repo.
+  `docs/colleague_fork_comparison.md` records the last comparison.
 - **The Industry Matrix (`data/*.xlsx`)** is replaced by the user, not by Claude. Never
   overwrite it with data fetched from the Google Sheet (see SKILL.md). After it changes, run
   the regression check: only `benchmarkAvg` should move.
