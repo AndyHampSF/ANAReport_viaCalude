@@ -11,8 +11,8 @@ v3.9.1 and the upgraded version.
 | A3 | OAuth client list: production apps only | JLR: 9 **sandbox** names, 0 production. TalkTalk: 25 sandbox names | JLR: its 3 production apps. TalkTalk: 91 production partners | **Apply** |
 | A4 | Backend names | "Api API", "Staging API", "API Gateway", "Site API", "Microsoft API" | Arval (BNP Paribas), Fibre Gateway, Salesforce Experience Cloud, Microsoft Entra ID | **Apply** |
 | A5 | Read exports as UTF-8 | Accented names garbled on Windows | Correct everywhere | **Apply** |
-| A7 | Unidentified inbound traffic ("External Traffic" / TalkTalk's "Partner") is a consumer, not a backend | Counted as a backend, drawn in the Backend column with outgoing arrows | Shown with Client Apps as a caller; backend count −1; flows and reuse unchanged | **Apply** |
 | A6 | Env detection prefers an explicit `prod` token | `network-test-pxc-prod` classed as Test | Production | Apply (affects exports without app data only) |
+| A7 | Unidentified inbound traffic ("External Traffic" / TalkTalk's "Partner") is a consumer, not a backend | Counted as a backend, drawn in the Backend column with outgoing arrows | Shown with Client Apps as a caller; backend count −1; flows and reuse unchanged | **Apply** |
 
 ## Part B: Features
 | # | Feature | Needs | Recommend |

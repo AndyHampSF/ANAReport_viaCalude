@@ -25,3 +25,6 @@ __pycache__/
 
 # Colleague-pack example reports contain customer data
 /docs/colleague_pack/examples/
+
+# Zipped colleague pack includes the example reports (customer data)
+/docs/*.zip
