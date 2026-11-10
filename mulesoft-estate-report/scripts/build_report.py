@@ -11,7 +11,7 @@ same bytes are written on Windows, macOS and Linux (UTF-8, LF line endings),
 console output is plain ASCII, and the output filename is safe on every OS.
 
 Usage:
-    python3 build_report.py <input.json> [-o OUTPUT_DIR] [--keep-data] [--open] [--customer NAME]
+    python3 build_report.py <input.json> [-o OUTPUT_DIR] [--keep-data] [--open] [--customer NAME] [--no-pdf]
     python3 build_report.py <input.json> --check
 
     -o / --out-dir   where to write the HTML (default: same folder as the input)
@@ -19,6 +19,8 @@ Usage:
     --open           open the finished report in the default browser
     --check          validate the export only; don't build anything
     --customer NAME  override the customer / report name (default: masterOrgName)
+    --no-pdf         skip the shareable PDF review (built by default with build_pdf.py;
+                     needs Chrome or Edge - if neither is found the HTML is still written)
 
 Exit codes: 0 ok, 1 build failed (e.g. RECONCILIATION FAILED), 2 invalid input.
 Nothing is written unless the build succeeds.
@@ -135,6 +137,7 @@ def main():
     ap.add_argument('--open', action='store_true', help='open the report in the default browser')
     ap.add_argument('--check', action='store_true', help='validate the export only')
     ap.add_argument('--customer', help='override the customer / report name (default: masterOrgName)')
+    ap.add_argument('--no-pdf', action='store_true', help='skip the shareable PDF review')
     args = ap.parse_args()
     in_path = Path(args.input).expanduser().resolve()
 
@@ -204,6 +207,21 @@ def main():
                                  else 'NOT AVAILABLE (report falls back to 38% global)'))
     for w in warnings:
         log(f'  WARNING        : {w}')
+
+    # Shareable PDF review: rebuilt with every report so the two never drift apart.
+    if not args.no_pdf:
+        pdf_cmd = [sys.executable, str(Path(__file__).resolve().parent / 'build_pdf.py'),
+                   str(in_path), '-o', str(out_path.parent)]
+        if args.customer:
+            pdf_cmd += ['--customer', args.customer]
+        r = subprocess.run(pdf_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           env=dict(os.environ, PYTHONIOENCODING='utf-8'))
+        msg = (r.stderr or b'').decode('utf-8', 'replace').strip().splitlines()
+        if r.returncode == 0:
+            for line in msg:
+                log(line.replace('-- PDF WRITTEN:', '-- PDF WRITTEN   :'))
+        else:
+            log('  WARNING        : PDF review not built - ' + (msg[-1] if msg else f'exit {r.returncode}'))
 
     if args.open:
         webbrowser.open(out_path.as_uri())

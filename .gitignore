@@ -28,3 +28,6 @@ __pycache__/
 
 # Zipped colleague pack includes the example reports (customer data)
 /docs/*.zip
+
+# Customer-specific PDF wording (names customer apps)
+/pdf_notes/

@@ -26,8 +26,11 @@ script, and report the results — never to hand-write the data transformation o
 ├── mulesoft_arch_template.html       ← report template; DATA is injected into it
 ├── prompt_mulesoft_architecture_html.md  ← reference: DATA contract, metric definitions, tabs
 ├── scripts/
-│   ├── build_report.py               ← ENTRY POINT: export JSON → finished HTML
-│   └── build_data.py                 ← export JSON → DATA object (called by build_report.py)
+│   ├── build_report.py               ← ENTRY POINT: export JSON → finished HTML + PDF review
+│   ├── build_data.py                 ← export JSON → DATA object (called by build_report.py)
+│   └── build_pdf.py                  ← export JSON → shareable PDF review (called by build_report.py)
+├── assets/
+│   └── pdf_review.css                ← print stylesheet for the PDF review
 └── data/
     ├── ANA Industry Data Matrix - Golden Template.xlsx  ← peer benchmark source
     └── customer_ou_map.json          ← customer name → industry (OU) for the benchmark
@@ -95,6 +98,18 @@ bash, zsh and PowerShell.
   `--keep-data` also saves the DATA JSON, `--open` opens the report in the default
   browser on any OS, and `--customer "Name"` overrides the customer name shown in the
   report (default: `masterOrg.masterOrgName`).
+- **PDF review (built every time):** `{name}_MuleSoft_Architecture_Review.pdf`, a print-designed
+  A4 summary that follows the report's tabs, is written next to the HTML. Every number and
+  observation is derived from the data. It needs Chrome or Edge, which it finds itself on any
+  OS (`--browser PATH` on `build_pdf.py` overrides). If no browser is found, the HTML is still
+  written and a `WARNING` explains why there's no PDF. `--no-pdf` skips it.
+- **Customer wording for the PDF (optional):** `pdf_notes/<customer_slug>.json` next to the
+  input (e.g. `pdf_notes/jaguar_land_rover.json`) replaces or hides individual observations,
+  the executive-summary bullets, the goal, the recommendations and the reuse callout. Run
+  `PY "<BASE_DIR>/scripts/build_pdf.py" "<input.json>" --list-slots` to see the slot ids. The
+  notes may name customer apps, so they stay local, like the exports. Notes record the extract
+  they were written for (`asOf`); when a newer export is used, the build warns and you must
+  review the hard-coded numbers in the notes with the user before sharing the PDF.
 - **Exit codes:** 0 = ok, 1 = build failed (e.g. `RECONCILIATION FAILED`), 2 = invalid input.
   On a non-zero exit, **stop and report**. Nothing is written, and you must never ship a
   report with silently-lost edges.
@@ -126,6 +141,14 @@ Then tell the user:
 - the customer name and key KPIs: total/running apps, environments, APIs by layer,
   backends, flows, and production reuse rate vs the benchmark
 - any warnings, in plain language
+
+### Always regenerate the PDFs
+
+Whenever the data changes (a new export) **or** a change to the scripts or template could
+alter anything the report shows, re-run `build_report.py` for every affected customer so the
+HTML and the PDF stay in step. Then look at every PDF page (render the print HTML from
+`build_pdf.py --keep-html` with headless Chrome if you can't view PDFs) before telling the user
+it's ready.
 
 ### Changing the script
 

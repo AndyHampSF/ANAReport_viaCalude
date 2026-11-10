@@ -178,6 +178,23 @@ its `numberOfClientApplications`.
 
 ## Change log
 
+### 2026-11-10: shareable PDF review is generated with every report
+
+- New `scripts/build_pdf.py` (standard library; prints with Chrome or Edge, found
+  automatically on Windows, macOS and Linux) writes `{name}_MuleSoft_Architecture_Review.pdf`:
+  cover, executive summary, overview, business groups, API-led, flows, inventory, backends,
+  insights, reuse analysis and next steps. Stylesheet: `assets/pdf_review.css`.
+- `build_report.py` now calls it after every build (`--no-pdf` to skip). A missing browser
+  is a warning, not a failure, and the HTML is still written.
+- Every observation is generated from the data, so any customer gets a sensible PDF.
+  Hand-written customer wording goes in an optional `pdf_notes/<slug>.json`, which is local
+  and gitignored because it names customer apps. It can replace or hide each observation
+  (`--list-slots`), the summary bullets, the goal, the recommendations and the reuse callout.
+  It records `asOf`, so a newer export triggers a "review the notes" warning.
+- The previous hand-made JLR and TalkTalk PDFs were moved into notes files and regenerated
+  with the same wording and page count. SGN and Informa PDFs were generated for the first time.
+  The HTML reports are byte-identical to before.
+
 ### 2026-11-10: unidentified inbound traffic is a consumer, not a backend
 
 - Every export has one `http` node that is Anypoint Visualizer's catch-all for callers with
@@ -561,6 +578,12 @@ data. On a fresh clone there's no baseline, so take one *before* changing anythi
 ---
 
 ## Notes for Claude (continuing this project)
+
+- **PDFs are always regenerated (user rule, 10 Nov 2026).** Whenever an export changes, or a
+  change could alter anything the report shows, rebuild the HTML **and** PDF for every
+  customer affected (`build_report.py` does both). Check every PDF page visually. Customer
+  wording lives in `pdf_notes/*.json` (local, gitignored); if `build_pdf.py` warns the notes
+  are older than the export, review those numbers with the user.
 
 - **Platform:** never assume an OS or ask the user about it. Find Python as SKILL.md describes,
   keep the scripts standard-library only (no pip dependencies), and read/write files as
