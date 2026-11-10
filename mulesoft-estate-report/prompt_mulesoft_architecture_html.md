@@ -128,6 +128,11 @@ All `clientGroup` nodes merge into one node, `key: "consumer-merged"`, labelled
 
 ### 3.3 Backends (`http`, `other`, `db`, `sfdc` nodes)
 
+**Before that, take out unidentified inbound traffic.** An `http` node with no `host`,
+`clientId: OTHER` and no inbound edges is Visualizer's catch-all for callers without a
+recognised client ID: "External Traffic", or a renamed copy such as TalkTalk's "Partner".
+It becomes a **consumer** (`kind: 'consumer'`, icon `web`), not a backend.
+
 **First, check for internal Mule calls.** Take the hostname stem (the text before the first
 `.`). If the stem, the raw label, or the stem with a trailing `-[a-z0-9]{6}` removed equals a
 Mule app label, the node is remapped to that app and is **not** a backend.

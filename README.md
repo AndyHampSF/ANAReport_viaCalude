@@ -178,6 +178,21 @@ its `numberOfClientApplications`.
 
 ## Change log
 
+### 2026-11-10: unidentified inbound traffic is a consumer, not a backend
+
+- Every export has one `http` node that is Anypoint Visualizer's catch-all for callers with
+  no recognised client ID. It is usually named "External Traffic"; TalkTalk renamed it
+  "Partner". Its signature is: no `host`, `clientId: OTHER`, outbound edges only. SGN's copy
+  is even labelled "External system (inbound)".
+- It was being counted as a backend. It sat in the Backend column with outgoing arrows,
+  and appeared on the Backend tab with 0 connections.
+- It's now a **consumer**, shown next to "N Client Apps" in the column view, on the consumer
+  arc, and in the architecture view's consumer row.
+- **Regression:** every customer's backend count drops by 1 (TalkTalk 23→22, JLR 23→22,
+  SGN 18→17, Informa 47→46). Flows, reuse, adoption and peer-review metrics are identical.
+  All four reports and both PDFs were regenerated. The circular click test still passes
+  (72/72, 58/58).
+
 ### 2026-11-05 (later): upgrade pack for the colleague's fork
 
 `docs/colleague_pack/` lets a colleague upgrade their v3.9.1 fork with their own Claude Code:

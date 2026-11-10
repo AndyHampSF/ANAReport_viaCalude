@@ -63,6 +63,8 @@ v3.6.0 (2026-11-05): features adopted from a colleague's fork (v3.9.1), computed
   - reuseMetrics: the MuleSoft peer-review three-metric framing (API-led %, reuse rate,
     reusability) for comparison with peer-review decks.
   - --customer=NAME overrides the customer / report name (default: masterOrgName).
+  - Unidentified inbound traffic (http node, no host, clientId OTHER, outbound only;
+    "External Traffic", TalkTalk's "Partner") is a consumer, not a backend.
   - Topology-only exports (no apps[]) now derive envRows, inventory and a single
     business group from the Mule node names (env token anywhere in the name), so the
     env chart and inventory aren't blank. Standard exports are unaffected.
@@ -819,11 +821,32 @@ def main():
         for cid in cg_ids:
             id_to_key[cid] = ckey
 
+    # Unidentified inbound traffic: Visualizer's catch-all node for callers with no
+    # recognised client ID ("External Traffic", sometimes renamed, e.g. TalkTalk's
+    # "Partner"). Signature: http node, no host, clientId OTHER, no inbound edges.
+    # It's a consumer, not a backend.
+    _has_in = {e.get('targetId') or e.get('target') for e in edges}
+    def _is_external_traffic(n):
+        return (n.get('type') == 'http' and not n.get('host')
+                and str(n.get('clientId', '')).upper() == 'OTHER'
+                and n['id'] not in _has_in)
+    for n in nodes:
+        if _is_external_traffic(n):
+            ekey = 'consumer-ext-' + n['id']
+            lbl = n.get('label') or 'External Traffic'
+            out_nodes[ekey] = {'key': ekey, 'label': lbl, 'kind': 'consumer', 'layer': 'consumer',
+                               'tag': '', 'category': 'Unidentified inbound traffic',
+                               'icon': 'web', 'in': 0, 'out': 0}
+            consumers.append(out_nodes[ekey])
+            id_to_key[n['id']] = ekey
+
     # backend candidates: http / other / db / sfdc
     internal_remapped = 0
     for n in nodes:
         t = n.get('type')
         if t not in ('http', 'other', 'db', 'sfdc'):
+            continue
+        if n['id'] in id_to_key:          # already classified (e.g. external traffic)
             continue
         raw_label = n.get('label', '') or ''
         stem = strip_host(raw_label)

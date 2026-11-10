@@ -208,6 +208,26 @@ Each change's **Verify** steps tell you what to check. "Re-run" means: run
   | `dev-whs-exp-foo` | Development |
   | `test-object-store1` | Test |
 
+### A7. Unidentified inbound traffic is a consumer, not a backend
+- **Problem:** every export has one `http` node that is Visualizer's catch-all for callers
+  without a recognised client ID. It's normally labelled "External Traffic", but it can be
+  renamed: TalkTalk calls it "Partner". The script treats it as a backend. It ends up in
+  the Backend column with arrows pointing back to the APIs, is counted in the backend total,
+  and is listed on the Backend tab with 0 connections.
+- **How to recognise it:** `type == 'http'`, **no `host`**, `clientId` is `OTHER`, and **no
+  inbound edges**.
+- **Fix:** before the backend loop, turn each matching node into a consumer:
+  `{kind:'consumer', layer:'consumer', icon:'web'}`, keeping its label. Add it to
+  `consumers`, map its id to it, and skip it in the backend loop.
+- **Effect:** the backend count drops by 1 for each customer (TalkTalk 23→22, JLR 23→22).
+  Flows and reuse figures are **unchanged**, because its edges were already counted as
+  consumers.
+- **Verify:** re-run the baselines.
+  - Backends drop by exactly 1 where the node exists.
+  - `kpis.flows` and every reuse field are identical to before.
+  - `consumers` now includes the node.
+  - In the report it appears in the consumer column, not under Backend.
+
 ---
 
 ## Part B: Features to add
