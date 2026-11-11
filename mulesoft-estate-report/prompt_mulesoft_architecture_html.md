@@ -118,8 +118,10 @@ incomplete for APIs with more than 50 consumers.
    - else **other** → `layerOther`. These apps are not in `layers`, not in `uniqueApis`, and
      are drawn in the Backend column of the flows graph.
 
-The inventory and reuse `perApp` lists always use the name rules, because `apps[]` has no
-layer field.
+The same rule (`layer_of_node`) is used everywhere a layer is shown: the flows graph, the
+Reuse tab (`perApp`, `byLayer`, `noConsumers`, by-business-group lists) and the PDF. The
+inventory (`apps[]` has no layer field) takes the Visualizer label of the same-named app in the
+production or sandbox graph, and falls back to the name rules for apps not in either graph.
 
 ### 3.2 Consumers
 

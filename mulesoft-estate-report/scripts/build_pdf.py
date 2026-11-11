@@ -755,11 +755,18 @@ class Review:
         nxt = {'Incubating': 'next stage: Developing at 20%', 'Developing': 'next stage: Industrialised at 40%',
                'Industrialised': 'next stage: Mature at 50%', 'Mature API-led': 'the highest stage (50%+)'}[stage]
         best = max(self.by_bg, key=lambda b: b['reuseRate']) if len(self.by_bg) >= 2 else None
+        api_layers = [k for k in ('experience', 'process', 'system') if bl.get(k, {}).get('total', 0) >= 3]
+        weak = min(api_layers, key=lambda k: bl[k]['reuseRate']) if api_layers else None
+        if weak and bl[weak]['reuseRate'] < .5:
+            inside = (f'{weak.capitalize()}-layer reuse is {bl[weak]["reuseRate"]:.0%}, the lowest of the three layers, '
+                      f'and reusability is {RP["reusability"]:.1%}.')
+        else:
+            inside = (f'reuse is already above 50% in every API layer, so the focus is keeping it there as the estate '
+                      f'grows. Reusability is {RP["reusability"]:.1%}.')
         opp = (self.N.get('reuse_opportunity')
                or (f'{e(best["bg"])} already reaches <b>{best["reuseRate"]:.1%}</b>. Bringing other groups onto the same shared '
                    f'APIs is the fastest route to the peer average.' if best and r < bench else
-                   f'{e(self.name)} is above the peer average. The next gain is reuse inside the platform: Process-layer reuse is '
-                   f'{bl.get("process", {}).get("reuseRate", 0):.0%}, and reusability is {RP["reusability"]:.1%}.' if r >= bench else
+                   f'{e(self.name)} is above the peer average. The next gain is reuse inside the platform: {inside}' if r >= bench else
                    f'Lifting reuse from {r:.1%} toward the {bench:.1%} peer average means routing new builds through '
                    f'existing shared APIs.'))
         return f'''

@@ -178,6 +178,21 @@ its `numberOfClientApplications`.
 
 ## Change log
 
+### 2026-11-11: one layer rule everywhere (Visualizer label first, then name rules)
+
+- The Reuse tab, inventory and business-group cards worked out layers from app names only,
+  while the API-Led tab and flows used Visualizer's layer label first. Customers whose layer
+  is set in Visualizer but not encoded in the names in a way the rules know (ACCA: `x-`/`p-`/`s-`)
+  showed every API as "Other" on the Reuse tab.
+- New `layer_of_node()` in `build_data.py` is now used everywhere. The inventory looks up
+  the Visualizer label of the same app in either graph.
+- **Regression:** only ACCA moved. Reuse by layer is now Exp 57.1% / Proc 61.5% / Sys 63.6%
+  (was all "Other" 60.5%). Inventory and business-group layer mix is now 112 / 92 / 79 / 46
+  other (was 329 other). Headline reuse rate, reusability and index are unchanged. Every other
+  export is identical.
+- The PDF's "opportunity" callout now names the weakest API layer rather than always Process,
+  and says so when every layer is above 50%.
+
 ### 2026-11-11: Reuse tab lists the APIs with no consumers
 
 - New **APIs with No Consumers** card at the bottom of the Reuse tab, in two groups:

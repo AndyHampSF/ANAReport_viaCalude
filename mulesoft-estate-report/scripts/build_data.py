@@ -315,7 +315,7 @@ def compute_reuse_stats_by_org(dep_nodes, dep_edges, master_org_name, org_map):
 
         per_app = sorted(
             [{'name': n['label'], 'consumers': incoming[n['id']],
-              'layer': layer_of_name(n.get('label') or '')}
+              'layer': layer_of_node(n)}
              for n in org_nodes if incoming[n['id']] > 0],
             key=lambda x: -x['consumers']
         )
@@ -381,7 +381,7 @@ def compute_reuse_stats(dep_nodes, dep_edges, apps, envtype_filter=None, org_map
     # Layer × consumer-status breakdown
     layer_stats = {}
     for lyr in ('experience', 'process', 'system', 'other'):
-        ids_in_layer = [n['id'] for n in mule_nodes if layer_of_name(n.get('label','')) == lyr]
+        ids_in_layer = [n['id'] for n in mule_nodes if layer_of_node(n) == lyr]
         if not ids_in_layer:
             continue
         lmore = sum(1 for i in ids_in_layer if incoming[i] > 1)
@@ -397,7 +397,7 @@ def compute_reuse_stats(dep_nodes, dep_edges, apps, envtype_filter=None, org_map
     # Per-app consumer detail for the ranked list
     per_app = sorted(
         [{'name': n['label'], 'consumers': incoming[n['id']],
-          'layer': layer_of_name(n.get('label') or '')}
+          'layer': layer_of_node(n)}
          for n in mule_nodes if incoming[n['id']] > 0],
         key=lambda x: -x['consumers']
     )
@@ -419,9 +419,7 @@ def compute_reuse_stats(dep_nodes, dep_edges, apps, envtype_filter=None, org_map
         lbl = n.get('label') or ''
         no_consumers.append({
             'name': lbl,
-            'layer': ((n.get('layer') or {}).get('label') or '').lower()
-                     if ((n.get('layer') or {}).get('label') or '').lower() in ('experience', 'process', 'system')
-                     else layer_of_name(lbl),
+            'layer': layer_of_node(n),
             'bg': (org_map or {}).get(n.get('organizationId'), ''),
             'calls': len(tgts),
             'callsMule': sum(1 for t in tgts if t.get('type') == 'mule'),
@@ -484,6 +482,16 @@ def env_of_name(label):
     else:
         _, tok = hits[0]
     return ENV_NAME[tok], ('production' if tok in PROD_TOKENS else 'sandbox')
+
+
+def layer_of_node(n):
+    """Layer for a graph node: Visualizer's layer label when it names an API-led layer,
+    otherwise the name rules. Used everywhere a node's layer is shown or counted, so the
+    API-Led and Reuse tabs always agree."""
+    lab = ((n.get('layer') or {}).get('label') or '').lower()
+    if lab in ('experience', 'process', 'system'):
+        return lab
+    return layer_of_name(n.get('label') or '')
 
 
 def layer_of_name(name):
@@ -812,11 +820,7 @@ def main():
     id_to_key = {}          # raw node id -> output_key
     backend_members = defaultdict(list)   # friendly -> [raw labels]
 
-    def layer_of(n):
-        lab = ((n.get('layer') or {}).get('label') or '').lower()
-        if lab in ('experience', 'process', 'system'):
-            return lab
-        return layer_of_name(n.get('label') or '')
+    layer_of = layer_of_node
 
     # First pass: mule nodes (own an output key = their id)
     for n in nodes:
@@ -999,7 +1003,18 @@ def main():
         # rows as the env chart and the inventory's environment filter.
         env_count = len(env_rows)
 
-        # Build inventory list
+        # Build inventory list. Layer: Visualizer's label for the same app in either
+        # graph (production or sandbox) when it has one, else the name rules.
+        graph_layer = {}
+        for sec in ('production', 'sandbox'):
+            for gn in (raw.get(sec) or {}).get('dependencies', {}).get('nodes', []) or []:
+                if gn.get('type') != 'mule':
+                    continue
+                lyr = layer_of_node(gn)
+                if lyr != 'other':
+                    for nm in (gn.get('appName'), gn.get('label')):
+                        if nm:
+                            graph_layer.setdefault(nm, lyr)
         inventory = []
         for a in apps:
             ename = env_lookup.get(a.get('envid', ''), a.get('envtype', '').title())
@@ -1009,7 +1024,7 @@ def main():
                 'name': a.get('appname', ''),
                 'env': ename,
                 'envtype': a.get('envtype', ''),
-                'layer': layer_of_name(a.get('appname', '')),
+                'layer': graph_layer.get(a.get('appname', '')) or layer_of_name(a.get('appname', '')),
                 'status': a.get('status', ''),
                 'target': a.get('target', ''),
                 'vcores': vcores,
