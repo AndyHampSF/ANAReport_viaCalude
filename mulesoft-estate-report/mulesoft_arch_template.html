@@ -1583,6 +1583,59 @@ function renderReuse(){
     </div>
   </div>
 
+  ${renderNoConsumers(ra)}
+
+  </div>`;
+}
+
+// ── Reuse tab: production APIs with no consumers ──
+function renderNoConsumers(ra){
+  const layerColor = l => l==='experience'?'var(--exp)':l==='process'?'var(--proc)':l==='system'?'var(--sys)':'var(--muted)';
+  const layerLabel = l => l==='experience'?'Experience':l==='process'?'Process':l==='system'?'System':'Other';
+  const list = ra.noConsumers || [];
+  if(!list.length) return `
+  <div class="card">
+    <h3 style="font-size:13px;font-weight:700;color:var(--title);margin:0 0 6px">${dico(TICO.ins)} APIs with No Consumers</h3>
+    <p style="font-size:12px;color:var(--muted);margin:0">Every production API has at least one consumer in the dependency graph.</p>
+  </div>`;
+  const outbound = list.filter(a => a.calls > 0), idle = list.filter(a => a.calls === 0);
+  const multiBG = new Set(list.map(a => a.bg).filter(Boolean)).size > 1;
+  const stChip = st => {
+    if(!st) return '<span style="color:var(--muted)">—</span>';
+    const run = ['RUNNING','STARTED','SCALING'].includes(st);
+    return `<span style="font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:99px;${run
+      ? 'background:#E7F6EF;color:#0B7A4B' : 'background:#FDF1E1;color:#9A5B00'}">${esc(st.charAt(0)+st.slice(1).toLowerCase())}</span>`;
+  };
+  const row = a => `<tr style="border-top:1px solid var(--line)">
+      <td style="padding:7px 8px 7px 0;font-size:12px;font-weight:600;color:var(--title);word-break:break-all">
+        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${layerColor(a.layer)};margin-right:6px" title="${layerLabel(a.layer)}"></span>${esc(a.name)}</td>
+      <td style="padding:7px 8px;font-size:12px;color:var(--muted)">${layerLabel(a.layer)}</td>
+      ${multiBG ? `<td style="padding:7px 8px;font-size:12px;color:var(--muted)">${esc(a.bg||'')}</td>` : ''}
+      <td style="padding:7px 8px;font-size:12px;color:var(--title);text-align:right">${a.calls ? a.calls + (a.callsMule ? ` <span style="color:var(--muted)">(${a.callsMule} Mule)</span>` : '') : '<span style="color:var(--muted)">none</span>'}</td>
+      <td style="padding:7px 0 7px 8px;text-align:right">${stChip(a.status)}</td>
+    </tr>`;
+  const table = (rows, title, note) => !rows.length ? '' : `
+    <div style="margin-top:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--title)">${title} <span style="font-weight:400;color:var(--muted)">· ${rows.length}</span></div>
+      <div style="font-size:11.5px;color:var(--muted);margin:2px 0 6px">${note}</div>
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+        <colgroup><col style="width:${multiBG?'40':'55'}%"><col style="width:12%">${multiBG?'<col style="width:22%">':''}<col style="width:14%"><col></colgroup>
+        <thead><tr style="font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);text-align:left">
+          <th style="padding:4px 8px 4px 0;font-weight:600">API</th><th style="padding:4px 8px;font-weight:600">Layer</th>
+          ${multiBG ? '<th style="padding:4px 8px;font-weight:600">Business group</th>' : ''}
+          <th style="padding:4px 8px;font-weight:600;text-align:right">Calls out to</th>
+          <th style="padding:4px 0 4px 8px;font-weight:600;text-align:right">Status</th></tr></thead>
+        <tbody>${rows.map(row).join('')}</tbody>
+      </table>
+    </div>`;
+  return `
+  <div class="card">
+    <h3 style="font-size:13px;font-weight:700;color:var(--title);margin:0 0 6px">${dico(TICO.ins)} APIs with No Consumers</h3>
+    <p style="font-size:11.5px;color:var(--muted);margin:0">${list.length} of ${ra.apisTotal} production APIs have no consumer in the dependency graph: no client application and no other component calls them. They count towards <b>APIs analysed</b> but not towards reuse.</p>
+    ${table(outbound, 'Calls out, but nothing calls in',
+      'Usually batch, scheduled, listener or event-driven apps (they start work themselves), or APIs whose callers are not visible to Anypoint Visualizer.')}
+    ${table(idle, 'No observed dependencies at all',
+      'No traffic in or out during the observation period. Candidates to confirm: new, low-volume, superseded or no longer needed.')}
   </div>`;
 }
 

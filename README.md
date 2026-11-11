@@ -178,6 +178,18 @@ its `numberOfClientApplications`.
 
 ## Change log
 
+### 2026-11-11: Reuse tab lists the APIs with no consumers
+
+- New **APIs with No Consumers** card at the bottom of the Reuse tab, in two groups:
+  - **Calls out, but nothing calls in**: usually batch, scheduled, listener or event-driven
+    apps, or APIs whose callers Visualizer can't see.
+  - **No observed dependencies at all**: candidates to confirm or retire.
+  Each row shows the layer, business group (when there's more than one), what it calls, and
+  its production status.
+- `build_data.py` adds `reuseAnalysis.production.noConsumers`. **Regression:** no existing
+  number changed for any export; the list length always equals `consumedNone`
+  (ACCA 3, Informa 31, JLR 11, SGN 1, TalkTalk 8, British Sugar 0).
+
 ### 2026-11-10: shareable PDF review is generated with every report
 
 - New `scripts/build_pdf.py` (standard library; prints with Chrome or Edge, found

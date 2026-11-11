@@ -339,7 +339,7 @@ def compute_reuse_stats_by_org(dep_nodes, dep_edges, master_org_name, org_map):
     return sorted([r for r in results if r['apisTotal'] > 0], key=lambda x: -x['apisTotal'])
 
 
-def compute_reuse_stats(dep_nodes, dep_edges, apps, envtype_filter=None):
+def compute_reuse_stats(dep_nodes, dep_edges, apps, envtype_filter=None, org_map=None):
     """Compute reuse analysis for a dependency graph section.
 
     Expands clientGroup nodes by numberOfClientApplications so each client
@@ -358,9 +358,12 @@ def compute_reuse_stats(dep_nodes, dep_edges, apps, envtype_filter=None):
 
     # Count incoming consumers per mule node, expanding clientGroup
     incoming = defaultdict(int)
+    outgoing = defaultdict(set)
     for e in dep_edges:
         s = e.get('sourceId') or e.get('source')
         t = e.get('targetId') or e.get('target')
+        if s in mule_ids and t != s:
+            outgoing[s].add(t)
         if t in mule_ids:
             src = node_by_id.get(s, {})
             n_clients = (src.get('numberOfClientApplications') or 1) if src.get('type') == 'clientGroup' else 1
@@ -399,6 +402,33 @@ def compute_reuse_stats(dep_nodes, dep_edges, apps, envtype_filter=None):
         key=lambda x: -x['consumers']
     )
 
+    # APIs with no consumers: what (if anything) each one calls, to tell batch /
+    # scheduled / event-driven apps (call out, nothing calls in) from apps with no
+    # observed dependencies at all (idle, new, or not seen by Visualizer).
+    status_by_app = {}
+    for a in apps or []:
+        if a.get('envtype') == 'production' and a.get('appname'):
+            st = a.get('status') or ''
+            if st in RUNNING_STATES or a['appname'] not in status_by_app:
+                status_by_app[a['appname']] = st
+    no_consumers = []
+    for n in mule_nodes:
+        if incoming[n['id']]:
+            continue
+        tgts = [node_by_id.get(t, {}) for t in outgoing[n['id']]]
+        lbl = n.get('label') or ''
+        no_consumers.append({
+            'name': lbl,
+            'layer': ((n.get('layer') or {}).get('label') or '').lower()
+                     if ((n.get('layer') or {}).get('label') or '').lower() in ('experience', 'process', 'system')
+                     else layer_of_name(lbl),
+            'bg': (org_map or {}).get(n.get('organizationId'), ''),
+            'calls': len(tgts),
+            'callsMule': sum(1 for t in tgts if t.get('type') == 'mule'),
+            'status': status_by_app.get(lbl) or status_by_app.get(n.get('appName') or '', ''),
+        })
+    no_consumers.sort(key=lambda x: (x['calls'] == 0, x['layer'], x['name']))
+
     reuse_rate = round(reuse_instances / total_consumers, 4) if total_consumers else 0
     reuse_index_apis = round(total_consumers / apis_with_consumers, 4) if apis_with_consumers else 0
     reuse_index_all  = round(total_consumers / apis_total, 4) if apis_total else 0
@@ -416,6 +446,7 @@ def compute_reuse_stats(dep_nodes, dep_edges, apps, envtype_filter=None):
         'reuseIndexAll':   reuse_index_all,
         'reusability':     reusability,
         'perApp':          per_app,
+        'noConsumers':     no_consumers,
         'byLayer':         layer_stats,
     }
 
@@ -1126,7 +1157,7 @@ def main():
     # ── Reuse analysis (production graph + optional sandbox graph) ─────────────
     prod_dep_nodes = nodes   # already extracted from production section
     prod_dep_edges = edges
-    reuse_prod = compute_reuse_stats(prod_dep_nodes, prod_dep_edges, apps)
+    reuse_prod = compute_reuse_stats(prod_dep_nodes, prod_dep_edges, apps, org_map=org_id_to_name)
 
     reuse_sandbox = None
     if sandbox_dep:
