@@ -76,7 +76,7 @@ VAL = '#052D60'
 ORD1, ORD2, ORD3 = '#052D60', '#5A6B82', '#A7B2C1'
 RUN, STOP = '#0B8A3E', '#F2B33D'
 GOOD, FAIR, POOR = '#0B8A3E', '#F2B33D', '#D64545'   # verdict: green good, amber could be better, red poor
-FAIR_SOFT, POOR_SOFT = '#E3BE70', '#D4877F'   # softer improvement flags for consumer distribution
+GOOD_SOFT, FAIR_SOFT, POOR_SOFT = '#78AD63', '#E3BE70', '#D4877F'   # softer verdict set for the reuse page
 ACCENT = '#0B7A3B'   # page accents (section numbers, ticks) - not a data colour
 NAVY, INK, MUTED, LINE, BAND = '#052D60', '#1B2733', '#5F6B78', '#E3EAF2', '#F3F8FD'
 LAYER_COL = {'experience': EXP, 'process': PROC, 'system': SYS, 'other': OTHER}
@@ -165,7 +165,7 @@ def bench_bar(value, bench, name, width=760):
     for (a, b, lab), s in zip(bands, shade):
         out.append(f'<rect x="{sc(a)}" y="30" width="{sc(b)-sc(a)-2}" height="22" fill="{s}" rx="3"/>')
         out.append(f'<text x="{(sc(a)+sc(b))/2}" y="66" text-anchor="middle" class="t-band">{lab}</text>')
-    out.append(f'<rect x="{sc(0)}" y="36" width="{max(4, sc(value)-sc(0))}" height="10" rx="4" fill="{GOOD if value >= bench else FAIR if value >= bench - .10 else POOR}"/>')
+    out.append(f'<rect x="{sc(0)}" y="36" width="{max(4, sc(value)-sc(0))}" height="10" rx="4" fill="{GOOD_SOFT if value >= bench else FAIR_SOFT if value >= bench - .10 else POOR_SOFT}"/>')
     bx = sc(bench)
     out.append(f'<line x1="{bx}" y1="24" x2="{bx}" y2="56" stroke="{INK}" stroke-width="2"/>')
     out.append(f'<text x="{bx}" y="18" text-anchor="middle" class="t-lab">Peer average {bench:.1%}</text>')
@@ -800,7 +800,7 @@ class Review:
         layer_rows = [(k.capitalize(), round(bl[k]['reuseRate'] * 100, 1), LAYER_COL[k])
                       for k in ('experience', 'process', 'system', 'other') if k in bl]
         bg_rows = [(b['bg'], round(b['reuseRate'] * 100, 1),
-                    GOOD if b['reuseRate'] >= .4 else FAIR if b['reuseRate'] >= .2 else POOR) for b in self.by_bg][:8]
+                    GOOD_SOFT if b['reuseRate'] >= .4 else FAIR_SOFT if b['reuseRate'] >= .2 else POOR_SOFT) for b in self.by_bg][:8]
         third = (f'<div class="card"><h4>Reuse rate by business group</h4>{hbar_rows(bg_rows, 100, width=300, label_w=150, unit="%")}</div>'
                  if len(bg_rows) >= 2 else '')
         bench = self.bench if self.bench is not None else .38
@@ -840,8 +840,8 @@ class Review:
   <div class="card wide"><h4>{e(self.name)} against comparable customers</h4>{bench_bar(r, bench, self.name)}<div class="note">{bench_note}</div></div>
   <div class="{'cols3' if third else 'cols2'} top">
     <div class="card"><h4>How production APIs are consumed</h4>
-      <div class="donut-row">{donut([(RP['consumedMore'], GOOD), (RP['consumedOnce'], FAIR_SOFT), (RP['consumedNone'], POOR_SOFT)], top=str(RP['apisTotal']), bot='APIs')}
-      <div class="dleg"><div><i style="background:{GOOD}"></i><b>{RP['consumedMore']}</b> reused (2+ consumers)</div><div><i style="background:{FAIR_SOFT}"></i><b>{RP['consumedOnce']}</b> single consumer</div><div><i style="background:{POOR_SOFT}"></i><b>{RP['consumedNone']}</b> no consumers yet</div></div></div>
+      <div class="donut-row">{donut([(RP['consumedMore'], GOOD_SOFT), (RP['consumedOnce'], FAIR_SOFT), (RP['consumedNone'], POOR_SOFT)], top=str(RP['apisTotal']), bot='APIs')}
+      <div class="dleg"><div><i style="background:{GOOD_SOFT}"></i><b>{RP['consumedMore']}</b> reused (2+ consumers)</div><div><i style="background:{FAIR_SOFT}"></i><b>{RP['consumedOnce']}</b> single consumer</div><div><i style="background:{POOR_SOFT}"></i><b>{RP['consumedNone']}</b> no consumers yet</div></div></div>
     </div>
     {third}
     <div class="card"><h4>Reuse rate by API layer</h4>{hbar_rows(layer_rows, 100, width=300, label_w=90, unit='%')}</div>

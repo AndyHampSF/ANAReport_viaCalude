@@ -23,7 +23,7 @@
   --good-bg:#E6F4EC; --fair-bg:#FFF4DE; --poor-bg:#FBE7E7;
   --good-tx:#0B7A3B; --fair-tx:#8A5A00; --poor-tx:#A8322A;
   /* softer improvement flags (consumer distribution): not a definite 'bad' */
-  --fair-soft:#E3BE70; --poor-soft:#D4877F;
+  --good-soft:#78AD63; --fair-soft:#E3BE70; --poor-soft:#D4877F;   /* validated set */
   /* STATUS - reserved, always with a text label */
   --ok:var(--good); --ok-bg:var(--good-bg); --ok-tx:var(--good-tx);
   --warn:var(--fair); --warn-bg:var(--fair-bg); --warn-tx:var(--fair-tx);
@@ -1293,10 +1293,10 @@ function renderReuse(){
 
   // Maturity band from reuse rate
   const rr = ra.reuseRate;
-  const maturity = rr >= 0.50 ? {label:'Mature API-Led',  color:'var(--good-tx)', bg:'var(--good-bg)', bar:'var(--good)', fill:'var(--good)', ftx:'#fff', desc:'API-led operating at full scale. Assets are systematically shared and reused across the organisation as business-as-usual.'}
-                : rr >= 0.40 ? {label:'Industrialised',   color:'var(--good-tx)', bg:'var(--good-bg)', bar:'var(--good)', fill:'var(--good)', ftx:'#fff', desc:'API-led embedded in business-as-usual. Self-service production and consumption model is operationalised.'}
-                : rr >= 0.20 ? {label:'Developing',        color:'var(--fair-tx)', bg:'var(--fair-bg)', bar:'var(--fair)', fill:'var(--fair)', ftx:'#0b0b0b', desc:'API-led practices established in core programs. Reuse is growing but not yet systematic across the organisation.'}
-                :              {label:'Incubating',         color:'var(--poor-tx)', bg:'var(--poor-bg)', bar:'var(--poor)', fill:'var(--poor)', ftx:'#fff', desc:'API-led practices are in early stages. Most integrations are point-to-point with limited shared-asset reuse.'};
+  const maturity = rr >= 0.50 ? {label:'Mature API-Led',  color:'var(--good-tx)', bg:'var(--good-bg)', bar:'var(--good-soft)', fill:'var(--good-soft)', ftx:'#0b0b0b', desc:'API-led operating at full scale. Assets are systematically shared and reused across the organisation as business-as-usual.'}
+                : rr >= 0.40 ? {label:'Industrialised',   color:'var(--good-tx)', bg:'var(--good-bg)', bar:'var(--good-soft)', fill:'var(--good-soft)', ftx:'#0b0b0b', desc:'API-led embedded in business-as-usual. Self-service production and consumption model is operationalised.'}
+                : rr >= 0.20 ? {label:'Developing',        color:'var(--fair-tx)', bg:'var(--fair-bg)', bar:'var(--fair-soft)', fill:'var(--fair-soft)', ftx:'#0b0b0b', desc:'API-led practices established in core programs. Reuse is growing but not yet systematic across the organisation.'}
+                :              {label:'Incubating',         color:'var(--poor-tx)', bg:'var(--poor-bg)', bar:'var(--poor-soft)', fill:'var(--poor-soft)', ftx:'#0b0b0b', desc:'API-led practices are in early stages. Most integrations are point-to-point with limited shared-asset reuse.'};
 
   // Benchmark reference values — avg derived from peer set in ANA Industry Data Matrix
   // (falls back to MuleSoft global average of 38% if matrix was unavailable at build time)
@@ -1309,7 +1309,7 @@ function renderReuse(){
   // Donut breakdown values
   const total = ra.apisTotal;
   const segments = [
-    {label:'Multiple consumers', count:ra.consumedMore, color:'var(--good)',   pctVal: ra.apisTotal ? ra.consumedMore/ra.apisTotal : 0},
+    {label:'Multiple consumers', count:ra.consumedMore, color:'var(--good-soft)',   pctVal: ra.apisTotal ? ra.consumedMore/ra.apisTotal : 0},
     {label:'Single consumer',    count:ra.consumedOnce, color:'var(--fair-soft)', pctVal: ra.apisTotal ? ra.consumedOnce/ra.apisTotal : 0},
     {label:'No consumers yet',   count:ra.consumedNone, color:'var(--poor-soft)',      pctVal: ra.apisTotal ? ra.consumedNone/ra.apisTotal : 0},
   ];
@@ -1425,7 +1425,7 @@ function renderReuse(){
                 <span style="font-size:11.5px;font-weight:700;color:var(--title)">${pct(s.reuseRate)} reuse</span>
               </div>
               <div style="display:flex;gap:2px;border-radius:99px;overflow:hidden;height:8px;background:var(--line)">
-                ${moreW > 0 ? `<div style="width:${moreW}%;background:var(--good)" title="${s.more} with 2+ consumers"></div>` : ''}
+                ${moreW > 0 ? `<div style="width:${moreW}%;background:var(--good-soft)" title="${s.more} with 2+ consumers"></div>` : ''}
                 ${onceW > 0 ? `<div style="width:${onceW}%;background:var(--fair-soft)" title="${s.once} with 1 consumer"></div>` : ''}
                 ${noneW > 0 ? `<div style="width:${noneW}%;background:var(--poor-soft)" title="${s.none} with no consumers"></div>` : ''}
               </div>
@@ -1433,7 +1433,7 @@ function renderReuse(){
           }).join('');
         })()}
         <div style="display:flex;gap:14px;margin-top:10px">
-          ${[['2+ consumers','var(--good)'],['1 consumer','var(--fair-soft)'],['No consumers','var(--poor-soft)']].map(([l,c])=>`
+          ${[['2+ consumers','var(--good-soft)'],['1 consumer','var(--fair-soft)'],['No consumers','var(--poor-soft)']].map(([l,c])=>`
           <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted)">
             <span style="width:8px;height:8px;border-radius:2px;background:${c};flex-shrink:0"></span>${l}
           </div>`).join('')}
@@ -1490,7 +1490,7 @@ function renderReuse(){
           <span style="font-size:12px;font-weight:700;color:var(--title)">${pct(rr)}</span>
         </div>
         <div style="background:var(--line);border-radius:99px;height:10px;position:relative">
-          <div style="height:10px;border-radius:99px;background:${rr >= BENCH_AVG ? 'var(--good)' : rr >= BENCH_AVG - 0.10 ? 'var(--fair)' : 'var(--poor)'};width:${barPct}%;transition:width .6s"></div>
+          <div style="height:10px;border-radius:99px;background:${rr >= BENCH_AVG ? 'var(--good-soft)' : rr >= BENCH_AVG - 0.10 ? 'var(--fair-soft)' : 'var(--poor-soft)'};width:${barPct}%;transition:width .6s"></div>
         </div>
       </div>
 
@@ -1524,10 +1524,10 @@ function renderReuse(){
     const bgs = (DATA.reuseAnalysis || {}).byBG || [];
     if(bgs.length <= 1) return '';   // only show if multiple BGs exist
 
-    const maturityOf = r => r >= 0.50 ? {label:'Mature API-Led',color:'var(--good-tx)',bg:'var(--good-bg)',bar:'var(--good)'}
-                          : r >= 0.40 ? {label:'Industrialised', color:'var(--good-tx)',bg:'var(--good-bg)',bar:'var(--good)'}
-                          : r >= 0.20 ? {label:'Developing',     color:'var(--fair-tx)',bg:'var(--fair-bg)',bar:'var(--fair)'}
-                          :             {label:'Incubating',     color:'var(--poor-tx)',bg:'var(--poor-bg)',bar:'var(--poor)'};
+    const maturityOf = r => r >= 0.50 ? {label:'Mature API-Led',color:'var(--good-tx)',bg:'var(--good-bg)',bar:'var(--good-soft)'}
+                          : r >= 0.40 ? {label:'Industrialised', color:'var(--good-tx)',bg:'var(--good-bg)',bar:'var(--good-soft)'}
+                          : r >= 0.20 ? {label:'Developing',     color:'var(--fair-tx)',bg:'var(--fair-bg)',bar:'var(--fair-soft)'}
+                          :             {label:'Incubating',     color:'var(--poor-tx)',bg:'var(--poor-bg)',bar:'var(--poor-soft)'};
 
     const bgRows = bgs.map((bg, i) => {
       const m = maturityOf(bg.reuseRate);
