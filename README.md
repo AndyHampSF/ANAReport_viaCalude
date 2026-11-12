@@ -189,7 +189,8 @@ one job, in both the HTML report and the PDF (tokens at the top of the template 
 |---|---|---|
 | Layer identity | Exp `#1E64B0`, Proc `#0BA49B`, Sys `#5E66F9`, Other `#9AA5B1` | only "this is an X API" |
 | Value | navy `#052D60` | plain magnitudes, count badges, numbers |
-| Ordered buckets | navy ramp `#052D60` > `#5A6B82` > `#A7B2C1` | 2+/1/0 consumers, CloudHub tiers, maturity stages |
+| Reuse | orange ramp `#B83A0A` > `#E8702A` > `#F2A066` | 2+/1/0 consumers, the customer's reuse-rate bar, maturity stages (current stage highlighted), most-shared bars |
+| Ordered buckets (non-reuse) | navy ramp `#052D60` > `#5A6B82` > `#A7B2C1` | CloudHub platform tiers |
 | Status (with a label) | green `#0B8A3E`, amber `#F2B33D`, red | running/stopped, good/review, confidence |
 | Flow direction | dark `#1B2733` calls, magenta `#C2255C` called by | Integration Flows highlight only |
 
