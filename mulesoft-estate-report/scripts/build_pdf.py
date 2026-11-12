@@ -874,7 +874,7 @@ class Review:
                 '.bgc { border: 1px solid ' + LINE + '; border-radius: 10px; padding: 9px 11px; }\n'
                 '.bgc-h { display: flex; flex-direction: column; gap: 3px; font-size: 10.5pt; color: ' + NAVY + '; margin-bottom: 6px; }\n'
                 '.pill-p, .pill-s { font-size: 7.5pt; font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-right: 4px; }\n'
-                '.pill-p { background: #E7F6EF; color: #0B7A4B; } .pill-s { background: #EEF0FF; color: #4A52D6; }\n'
+                '.pill-p { background: ' + NAVY + '; color: #fff; } .pill-s { background: ' + BAND + '; color: ' + MUTED + '; border: 1px solid ' + LINE + '; }\n'
                 '.bgc-r { display: flex; justify-content: space-between; font-size: 8.6pt; margin: 3px 0; }\n'
                 '.bgc-r span { color: ' + MUTED + '; } .bgc-r .mut { font-size: 8pt; }\n'
                 '.bgc-bar { height: 7px; background: ' + BAND + '; border-radius: 4px; overflow: hidden; margin-bottom: 5px; }\n'

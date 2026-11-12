@@ -82,7 +82,7 @@ ul.arrows li::before { content: "→"; position: absolute; left: 0; color: $NAVY
 .bgc-h { display: flex; flex-direction: column; gap: 3px; font-size: 10.5pt; color: $NAVY; margin-bottom: 6px; }
 .bgc-h span { display: flex; gap: 0; } .bgc-h .pill-p { margin-left: 0; }
 .pill-p, .pill-s { font-size: 7.5pt; font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-left: 4px; }
-.pill-p { background: #E7F6EF; color: #0B7A4B; } .pill-s { background: #EEF0FF; color: #4A52D6; }
+.pill-p { background: $NAVY; color: #fff; } .pill-s { background: $BAND; color: $MUTED; border: 1px solid $LINE; }
 .bgc-r { display: flex; justify-content: space-between; font-size: 8.6pt; margin: 3px 0; }
 .bgc-r span { color: $MUTED; } .bgc-r .mut { font-size: 8pt; }
 .bgc-bar { height: 7px; background: $BAND; border-radius: 4px; overflow: hidden; margin-bottom: 5px; }
