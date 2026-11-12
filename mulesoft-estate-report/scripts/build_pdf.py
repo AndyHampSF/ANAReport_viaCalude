@@ -236,6 +236,7 @@ class Review:
         self.DC, self.AD, self.CF, self.RM = (D.get('deploymentCoverage'), D.get('adoption'),
                                               D.get('confidence'), D.get('reuseMetrics'))
         self.BGS = D.get('businessGroups') or []
+        self.PH = D.get('platformHealth')
         self.client_total = sum(n.get('numberOfClientApplications', 1) for n in
                                 (RAW.get('production', {}).get('dependencies', {}).get('nodes') or [])
                                 if n.get('type') == 'clientGroup')
@@ -386,6 +387,13 @@ class Review:
         if self.AD and self.AD['coveragePct'] < 30:
             out.append(f'<b>Manage more consumers.</b> Only {self.AD["consumedApis"]} of {self.AD["totalApis"]} APIs '
                        f'are consumed by registered client apps.')
+        busy = (self.PH or {}).get('singleReplicaBusy') or []
+        if busy:
+            out.insert(min(1, len(out)), f'<b>Protect shared APIs.</b> {len(busy)} production {plural(len(busy), "API")} '
+                       f'used by 3+ consumers {plural(len(busy), "runs", "run")} on a single replica.')
+        if (self.PH or {}).get('java8'):
+            out.append(f'<b>Upgrade from Java 8.</b> {len(self.PH["java8"])} production '
+                       f'{plural(len(self.PH["java8"]), "app")} still run on Java 8.')
         if self.idle:
             out.append(f'<b>Confirm quiet APIs.</b> {len(self.idle)} production {plural(len(self.idle), "app")} had no '
                        f'observed traffic.')
@@ -629,6 +637,7 @@ class Review:
                       f'{" and more" if self.DC["isolated"] > 5 else ""}) have no mapped dependencies.'
                       if self.DC and self.DC['isolated'] else 'Every production app is connected into the integration graph.'))
             if self.DC else '',
+            self.ins('inv.health', 'Platform health', self.health_text()) if self.health_text() else '',
         ]
         return f'''
 <section class="page">
@@ -671,6 +680,30 @@ class Review:
   </div>
 </section>'''
 
+    def health_text(self):
+        """Platform Health observation (resilience, runtime, test apps) or '' if no data."""
+        PH = self.PH
+        if not PH or not (PH['replicaKnown'] or PH['runtimeKnown'] or PH['testAppsInProd']):
+            return ''
+        parts = []
+        if PH['replicaKnown']:
+            busy = PH['singleReplicaBusy']
+            if PH['singleReplica'] == 0:
+                parts.append('Every production API runs on two or more replicas.')
+            elif busy:
+                parts.append(f'{PH["singleReplica"]} of {PH["replicaKnown"]} production apps run on one replica, including '
+                             f'{len(busy)} shared by 3+ consumers (led by {e(self.short(busy[0]["name"]))}, '
+                             f'{busy[0]["consumers"]}). An outage there affects every caller.')
+            else:
+                parts.append(f'{PH["singleReplica"]} of {PH["replicaKnown"]} production apps run on one replica, '
+                             f'none of them widely shared.')
+        if PH['runtimeKnown']:
+            parts.append(f'{len(PH["java8"])} of {PH["runtimeKnown"]} production apps still run on Java 8.' if PH['java8']
+                         else 'All production apps with a known runtime are on Java 17 or later.')
+        if PH['testAppsInProd']:
+            parts.append(f'Test apps in production: {", ".join(e(x) for x in PH["testAppsInProd"][:3])}.')
+        return ' '.join(parts)
+
     def default_recs(self):
         K, RP, out = self.K, self.RP, []
         if K['stopped'] or self.dups:
@@ -696,6 +729,18 @@ class Review:
         if self.DC and self.DC['isolated']:
             out.append(('Triage isolated production apps', f'{self.DC["isolated"]} production apps have no mapped dependencies. '
                         f'Retire, document or connect them.'))
+        PH = self.PH or {}
+        busy = PH.get('singleReplicaBusy') or []
+        if busy:
+            out.insert(min(2, len(out)), ('Add a second replica to shared APIs',
+                       f'{len(busy)} production {plural(len(busy), "API is", "APIs are")} used by 3 or more consumers but run on '
+                       f'one replica, led by {e(self.short(busy[0]["name"]))} ({busy[0]["consumers"]} consumers).'))
+        if PH.get('java8'):
+            out.append(('Move the Java 8 apps to Java 17', f'{len(PH["java8"])} production '
+                        f'{plural(len(PH["java8"]), "app")} still run on Java 8. Plan them with the next runtime upgrade.'))
+        if PH.get('testAppsInProd'):
+            out.append(('Remove test apps from production', ', '.join(e(x) for x in PH['testAppsInProd'][:3])
+                        + f' {plural(len(PH["testAppsInProd"]), "looks", "look")} like test or proof-of-concept deployments.'))
         if self.targets.get('CH1.0'):
             out.append(('Complete the move to CloudHub 2.0', f'{self.targets["CH1.0"]} deployments remain on CloudHub 1.0.'))
         return out[:6]

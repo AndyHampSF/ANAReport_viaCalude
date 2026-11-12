@@ -1098,6 +1098,59 @@ def main():
             'isolatedApps': [{'name': n, 'layer': prod_layer[n]} for n in iso],
         }
 
+    # ── Platform health - resilience, runtime currency, test apps in production ──
+    # From production apps[] (replicas, vCore size) and production graph nodes
+    # (muleVersion, consumers). None when the export has no app data.
+    platform_health = None
+    if apps:
+        prod_run = [a for a in apps if a.get('envtype') == 'production'
+                    and a.get('status') in RUNNING_STATES]
+        # consumers per production Mule app, counted the same way as the Reuse tab
+        _nb = {n['id']: n for n in nodes}
+        cons_by_label = Counter()
+        for e in edges:
+            t_ = _nb.get(e.get('targetId') or e.get('target'), {})
+            if t_.get('type') != 'mule':
+                continue
+            s_ = _nb.get(e.get('sourceId') or e.get('source'), {})
+            cons_by_label[t_.get('label') or ''] += ((s_.get('numberOfClientApplications') or 1)
+                                                     if s_.get('type') == 'clientGroup' else 1)
+        # Replica count is only meaningful on CloudHub / RTF; customer-hosted servers
+        # (target SERVER) report 0. One entry per app name (duplicates collapse).
+        managed = {}
+        for a in prod_run:
+            if str(a.get('target', '')).upper() == 'SERVER' or not a.get('replica'):
+                continue
+            nm = a.get('appname', '')
+            managed[nm] = max(managed.get(nm, 0), a.get('replica') or 1)
+        single = sorted(nm for nm, r in managed.items() if r < 2)
+        single_busy = sorted(({'name': nm, 'consumers': cons_by_label.get(nm, 0)}
+                              for nm in single if cons_by_label.get(nm, 0) >= 3),
+                             key=lambda x: (-x['consumers'], x['name']))
+        sizes = Counter(a.get('minsize') for a in prod_run if a.get('minsize'))
+        # runtime versions (only some exports carry muleVersion)
+        mv = Counter()
+        java8 = []
+        for n in nodes:
+            if n.get('type') == 'mule' and n.get('muleVersion'):
+                mv[n['muleVersion']] += 1
+                if 'java8' in n['muleVersion'].replace(' ', '').lower():
+                    java8.append(n.get('label') or '')
+        test_rx = re.compile(r'(^|[-_.])(poc|test|demo|hello|helloworld|tmp|temp|sandbox|scratch)([-_.0-9]|$)')
+        test_apps = sorted({a['appname'] for a in apps if a.get('envtype') == 'production'
+                            and test_rx.search(a.get('appname', '').lower())})
+        platform_health = {
+            'prodRunning': len(prod_run),
+            'replicaKnown': len(managed),
+            'singleReplica': len(single),
+            'singleReplicaBusy': single_busy,
+            'vcoreSizes': [{'size': k, 'apps': v} for k, v in sorted(sizes.items())],
+            'muleVersions': [{'version': k, 'apps': v} for k, v in mv.most_common()],
+            'runtimeKnown': sum(mv.values()),
+            'java8': sorted(java8),
+            'testAppsInProd': test_apps,
+        }
+
     # ── Platform adoption - share of the API-led catalogue clients consume ──
     API_LED = ('experience', 'process', 'system')
     cg_clients = {n['id']: (n.get('numberOfClientApplications') or 1)
@@ -1242,6 +1295,7 @@ def main():
         'businessGroups': business_groups,
         'deploymentCoverage': deployment_coverage,
         'adoption': adoption,
+        'platformHealth': platform_health,
         'confidence': confidence,
         'reuseMetrics': reuse_metrics,
         'reuseAnalysis': {

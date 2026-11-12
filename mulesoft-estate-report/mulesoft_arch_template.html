@@ -712,6 +712,33 @@ function renderIns(){
         : 'Every production app is connected into the integration graph.'}</p>
     </div>`);
   }
+  const ph = DATA.platformHealth;
+  if(ph && (ph.replicaKnown || ph.runtimeKnown || ph.testAppsInProd.length)){
+    const list = (a, n=4) => a.slice(0,n).map(esc).join(', ') + (a.length > n ? `, +${a.length-n} more` : '');
+    const lines = [];
+    if(ph.replicaKnown){
+      const busy = ph.singleReplicaBusy;
+      lines.push(`<b>Resilience:</b> ${ph.singleReplica === 0
+        ? `every production API runs on 2 or more replicas, so a single worker failure doesn't interrupt service.`
+        : `${ph.singleReplica} of ${ph.replicaKnown} running production apps run on a single replica.` + (busy.length
+          ? ` ${busy.length} of them ${busy.length===1?'is':'are'} shared by 3+ consumers (${list(busy.map(b=>`${b.name} (${b.consumers})`), 3)}): an outage there affects every caller. Consider 2 replicas for these.`
+          : ` None is shared by 3+ consumers, which limits the impact of a single failure.`)}`);
+    }
+    if(ph.runtimeKnown){
+      lines.push(`<b>Runtime:</b> ${ph.java8.length
+        ? `${ph.java8.length} of ${ph.runtimeKnown} production apps still run on Java 8 (${list(ph.java8)}). Plan the move to Java 17 alongside the next Mule runtime upgrade.`
+        : `all ${ph.runtimeKnown} production apps with a known runtime are on Java 17 or later (${ph.muleVersions.map(v=>esc(v.version)).join(', ')}).`}`);
+    }
+    if(ph.testAppsInProd.length)
+      lines.push(`<b>Test apps in production:</b> ${list(ph.testAppsInProd)}. Confirm they are needed, or remove them.`);
+    const flagged = (ph.singleReplicaBusy.length ? 1 : 0) + (ph.java8.length ? 1 : 0) + (ph.testAppsInProd.length ? 1 : 0);
+    extraCards.push(`
+    <div class="ins">
+      <h3><span class="ib" style="background:${flagged ? '#FFF3E0' : '#E7F6EF'}"><svg viewBox="0 0 24 24" fill="none" stroke="${flagged ? '#B9770E' : '#0B7A4B'}" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z"/></svg></span>Platform Health</h3>
+      <div class="big" style="color:${flagged ? '#B9770E' : 'var(--teal)'}">${flagged ? `${flagged} to review` : 'Good'}</div>
+      ${lines.map(l=>`<p style="margin-top:6px">${l}</p>`).join('')}
+    </div>`);
+  }
   if(rm) extraCards.push(`
     <div class="ins">
       <h3><span class="ib" style="background:#EEF0FF">${TICO.reuse.replace('class="tico"','')}</span>Peer-review metrics</h3>
@@ -737,7 +764,14 @@ function renderIns(){
     <div class="ins">
       <h3><span class="ib" style="background:#E7F6EF"><svg viewBox="0 0 24 24" fill="none" stroke="#0B7A4B" stroke-width="2"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10z"/><path d="M8 12l3 3 5-5"/></svg></span>Operational Health</h3>
       <div class="big">${healthPct}%</div>
-      <p>${K.running} of ${K.totalApps} applications are running. Production is near-fully healthy; any stopped apps concentrate in lower environments where idle replicas are expected.</p>
+      <p>${K.running} of ${K.totalApps} applications are running. ${(()=>{
+        const pr = (DATA.envRows||[]).filter(r=>r.type==='production');
+        const pt = pr.reduce((a,r)=>a+r.total,0), prun = pr.reduce((a,r)=>a+r.running,0);
+        if(!pt) return '';
+        const ps = pt - prun, lower = K.stopped - ps;
+        if(ps === 0) return `Production is fully healthy (${prun} of ${pt} running)` + (K.stopped ? `; all ${K.stopped} stopped apps are in lower environments.` : '.');
+        return `${ps} of ${pt} production apps are stopped` + (lower > 0 ? `, and ${lower} more in lower environments.` : '.') + ` Stopped production apps are worth confirming as intentional.`;
+      })()}</p>
     </div>
     <div class="ins">
       <h3><span class="ib" style="background:#FFF3E0"><svg viewBox="0 0 24 24" fill="none" stroke="#B9770E" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></span>Consumption Governance</h3>
@@ -766,9 +800,22 @@ function renderIns(){
       ${[
         ...(ad && ad.byLayer.system > 0 ? [[`Review direct System-API consumption`, `${ad.byLayer.system} System API${ad.byLayer.system===1?' is':'s are'} consumed directly by client applications, bypassing the Experience and Process layers. Confirm this is intentional rather than point-to-point coupling.`]] : []),
         ...(dc && dc.isolated > 0 ? [[`Triage isolated production apps`, `${dc.isolated} of ${dc.prodTotal} production apps have no mapped dependencies. Retire, document or connect them.`]] : []),
-        [`Consolidate stopped apps`, K.stopped === 0 ? `All applications actively deployed. Your environment reflects strong operational governance and efficient resource allocation.` : `${K.stopped} NOT_RUNNING apps detected. Review and remove idle replicas — particularly in Development — to reclaim vCore allocation.`],
+        [`Consolidate stopped apps`, K.stopped === 0 ? `All applications actively deployed. Your environment reflects strong operational governance and efficient resource allocation.` : (()=>{ const top = [...(DATA.envRows||[])].filter(r=>r.stopped>0).sort((x,y)=>y.stopped-x.stopped)[0];
+          return `${K.stopped} deployment${K.stopped===1?' is':'s are'} stopped or undeployed` + (top ? `, most in ${esc(top.name)} (${top.stopped})` : '') + `. Remove the ones no longer needed to simplify governance.`; })()],
         [`Promote System-API reuse`, `Top reused System APIs: ${DATA.reuse.filter(n=>n.layer==='system').slice(0,3).map(n=>n.label).join(', ')||'N/A'}. Catalog them in Anypoint Exchange as canonical connectivity assets.`],
-        [`Right-size vCore allocation`, `All apps are at 0.1 vCore replicas. Validate this covers peak throughput for data-heavy flows such as file transfers and HRIS sync batches.`],
+        ...((()=>{
+          const ph = DATA.platformHealth; if(!ph || !ph.vcoreSizes.length) return [];
+          const tot = ph.vcoreSizes.reduce((a,v)=>a+v.apps,0);
+          const mix = ph.vcoreSizes.map(v=>`${v.apps} at ${v.size} vCore`).join(', ');
+          const small = ph.vcoreSizes.filter(v=>v.size<=0.1).reduce((a,v)=>a+v.apps,0);
+          const big = ph.vcoreSizes.filter(v=>v.size>=1);
+          return [[`Right-size vCore allocation`, `Running production apps: ${mix}.` +
+            (small/tot >= 0.5 ? ` Most run at the smallest size; check that it covers peak load for the busiest and data-heavy APIs.` : '') +
+            (big.length ? ` Review whether the ${big.reduce((a,v)=>a+v.apps,0)} app${big.reduce((a,v)=>a+v.apps,0)===1?'':'s'} at 1 vCore or more need that capacity all the time.` : '')]];
+        })()),
+        ...(ph && ph.singleReplicaBusy.length ? [[`Add a second replica to shared APIs`, `${ph.singleReplicaBusy.length} production API${ph.singleReplicaBusy.length===1?' is':'s are'} used by 3 or more consumers but run${ph.singleReplicaBusy.length===1?'s':''} on one replica, led by ${esc(ph.singleReplicaBusy[0].name)} (${ph.singleReplicaBusy[0].consumers} consumers). Two replicas keep them available during worker restarts and failures.`]] : []),
+        ...(ph && ph.java8.length ? [[`Move the Java 8 apps to Java 17`, `${ph.java8.length} production app${ph.java8.length===1?'':'s'} still run${ph.java8.length===1?'s':''} on Java 8. Mule 4 runtimes are moving to Java 17, so plan these with the next runtime upgrade.`]] : []),
+        ...(ph && ph.testAppsInProd.length ? [[`Remove test apps from production`, `${ph.testAppsInProd.map(esc).join(', ')} ${ph.testAppsInProd.length===1?'looks':'look'} like test or proof-of-concept deployments.`]] : []),
         [`Formalize the Experience proxy pattern`, `Standardize proxy Experience APIs with API Manager policies for consistent security, throttling, and SLA enforcement across all consumer-facing channels.`],
       ].map(([t,d],i)=>`
         <div class="rec">

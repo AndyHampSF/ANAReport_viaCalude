@@ -178,6 +178,22 @@ its `numberOfClientApplications`.
 
 ## Change log
 
+### 2026-11-12: Platform Health insight; data-driven health and vCore text
+
+- New `platformHealth` in DATA, shown as a **Platform Health** card on MuleSoft Insights, with
+  matching recommendations, and on the PDF's inventory page and summary:
+  - **Resilience:** production apps on a single replica, highlighting those shared by 3+
+    consumers (Informa: 12, led by `prd-sys-thycotic-informage` with 27; JLR 2; SGN 2).
+  - **Runtime:** production apps still on Java 8 (ACCA: 10 of 41). Shown only when the export
+    carries `muleVersion`; TalkTalk, JLR and Informa exports don't.
+  - **Test apps in production** by name (`test-cicd-project-prod`, `network-test-pxc-prod`,
+    `net-tool-test-connection-informakn`).
+- **Fixed hard-coded text:** "All apps are at 0.1 vCore replicas … HRIS sync batches" is now
+  the customer's actual vCore mix; "Production is near-fully healthy" now states the real
+  production and lower-environment counts; the stopped-apps recommendation names the
+  environment with the most stopped apps instead of always "Development".
+- **Regression:** no existing number changed for any export; only `platformHealth` is new.
+
 ### 2026-11-11: one layer rule everywhere (Visualizer label first, then name rules)
 
 - The Reuse tab, inventory and business-group cards worked out layers from app names only,

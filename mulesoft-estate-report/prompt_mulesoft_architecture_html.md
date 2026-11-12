@@ -193,6 +193,7 @@ counting as that group's `numberOfClientApplications`.
 | **`reusability`** | consumedMore ÷ APIs with consumers |
 | `byLayer[layer]` | `{total, more, once, none, reuseRate}` where this `reuseRate` = more ÷ (more + once) |
 | `perApp` | `[{name, consumers, layer}]` for APIs with ≥1 consumer, sorted descending |
+| *(top level)* `platformHealth` | `{prodRunning, replicaKnown, singleReplica, singleReplicaBusy:[{name, consumers}], vcoreSizes:[{size, apps}], muleVersions:[{version, apps}], runtimeKnown, java8:[name], testAppsInProd:[name]}`, or null without `apps[]`. Replicas count CloudHub/RTF apps only (customer-hosted `SERVER` reports 0); `singleReplicaBusy` = single-replica apps with 3+ consumers; runtime fields are empty when the export has no `muleVersion`. Drives the **Platform Health** card and recommendations |
 | `noConsumers` | `[{name, layer, bg, calls, callsMule, status}]` for APIs with 0 consumers. `calls` = distinct things the API calls (of which `callsMule` are Mule apps); `status` from production `apps[]` (blank when the export has no app data). Sorted: APIs that call out first, then those with no dependencies at all. Shown on the Reuse tab as **APIs with No Consumers** |
 
 `byBG` repeats the headline metrics per business group (`organizationId` → `orgs[]`
