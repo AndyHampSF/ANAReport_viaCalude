@@ -22,6 +22,8 @@
   --good:#0B8A3E; --fair:#F2B33D; --poor:#D64545;
   --good-bg:#E6F4EC; --fair-bg:#FFF4DE; --poor-bg:#FBE7E7;
   --good-tx:#0B7A3B; --fair-tx:#8A5A00; --poor-tx:#A8322A;
+  /* softer improvement flags (consumer distribution): not a definite 'bad' */
+  --fair-soft:#E3BE70; --poor-soft:#D4877F;
   /* STATUS - reserved, always with a text label */
   --ok:var(--good); --ok-bg:var(--good-bg); --ok-tx:var(--good-tx);
   --warn:var(--fair); --warn-bg:var(--fair-bg); --warn-tx:var(--fair-tx);
@@ -1308,8 +1310,8 @@ function renderReuse(){
   const total = ra.apisTotal;
   const segments = [
     {label:'Multiple consumers', count:ra.consumedMore, color:'var(--good)',   pctVal: ra.apisTotal ? ra.consumedMore/ra.apisTotal : 0},
-    {label:'Single consumer',    count:ra.consumedOnce, color:'var(--fair)', pctVal: ra.apisTotal ? ra.consumedOnce/ra.apisTotal : 0},
-    {label:'No consumers yet',   count:ra.consumedNone, color:'var(--poor)',      pctVal: ra.apisTotal ? ra.consumedNone/ra.apisTotal : 0},
+    {label:'Single consumer',    count:ra.consumedOnce, color:'var(--fair-soft)', pctVal: ra.apisTotal ? ra.consumedOnce/ra.apisTotal : 0},
+    {label:'No consumers yet',   count:ra.consumedNone, color:'var(--poor-soft)',      pctVal: ra.apisTotal ? ra.consumedNone/ra.apisTotal : 0},
   ];
 
   // SVG donut (simple arc segments)
@@ -1424,14 +1426,14 @@ function renderReuse(){
               </div>
               <div style="display:flex;gap:2px;border-radius:99px;overflow:hidden;height:8px;background:var(--line)">
                 ${moreW > 0 ? `<div style="width:${moreW}%;background:var(--good)" title="${s.more} with 2+ consumers"></div>` : ''}
-                ${onceW > 0 ? `<div style="width:${onceW}%;background:var(--fair)" title="${s.once} with 1 consumer"></div>` : ''}
-                ${noneW > 0 ? `<div style="width:${noneW}%;background:var(--poor)" title="${s.none} with no consumers"></div>` : ''}
+                ${onceW > 0 ? `<div style="width:${onceW}%;background:var(--fair-soft)" title="${s.once} with 1 consumer"></div>` : ''}
+                ${noneW > 0 ? `<div style="width:${noneW}%;background:var(--poor-soft)" title="${s.none} with no consumers"></div>` : ''}
               </div>
             </div>`;
           }).join('');
         })()}
         <div style="display:flex;gap:14px;margin-top:10px">
-          ${[['2+ consumers','var(--good)'],['1 consumer','var(--fair)'],['No consumers','var(--poor)']].map(([l,c])=>`
+          ${[['2+ consumers','var(--good)'],['1 consumer','var(--fair-soft)'],['No consumers','var(--poor-soft)']].map(([l,c])=>`
           <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted)">
             <span style="width:8px;height:8px;border-radius:2px;background:${c};flex-shrink:0"></span>${l}
           </div>`).join('')}

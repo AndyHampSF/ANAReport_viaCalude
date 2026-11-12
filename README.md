@@ -189,7 +189,7 @@ one job, in both the HTML report and the PDF (tokens at the top of the template 
 |---|---|---|
 | Layer identity | Exp `#1E64B0`, Proc `#0BA49B`, Sys `#5E66F9`, Other `#9AA5B1` | only "this is an X API" |
 | Value | navy `#052D60` | plain magnitudes, count badges, numbers |
-| Verdict (good / could be better / poor) | green `#0B8A3E`, amber `#F2B33D`, red `#D64545`, always with a label | 2+/1/0 consumers; reuse rate vs peers (green at or above the peer average, amber within 10 points, red below that); maturity stages (Incubating red, Developing amber, Industrialised/Mature green, current stage filled); business-group reuse; running/stopped |
+| Verdict (good / could be better / poor) | green `#0B8A3E`, amber `#F2B33D`, red `#D64545`, always with a label; the API Consumer Distribution uses softer sand `#E3BE70` / rose `#D4877F` because single- and zero-consumer APIs are areas to review, not definite problems | 2+/1/0 consumers; reuse rate vs peers (green at or above the peer average, amber within 10 points, red below that); maturity stages (Incubating red, Developing amber, Industrialised/Mature green, current stage filled); business-group reuse; running/stopped |
 | Ordered buckets (non-reuse) | navy ramp `#052D60` > `#5A6B82` > `#A7B2C1` | CloudHub platform tiers |
 | Flow direction | dark `#1B2733` calls, magenta `#C2255C` called by | Integration Flows highlight only |
 

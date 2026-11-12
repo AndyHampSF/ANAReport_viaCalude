@@ -76,6 +76,7 @@ VAL = '#052D60'
 ORD1, ORD2, ORD3 = '#052D60', '#5A6B82', '#A7B2C1'
 RUN, STOP = '#0B8A3E', '#F2B33D'
 GOOD, FAIR, POOR = '#0B8A3E', '#F2B33D', '#D64545'   # verdict: green good, amber could be better, red poor
+FAIR_SOFT, POOR_SOFT = '#E3BE70', '#D4877F'   # softer improvement flags for consumer distribution
 ACCENT = '#0B7A3B'   # page accents (section numbers, ticks) - not a data colour
 NAVY, INK, MUTED, LINE, BAND = '#052D60', '#1B2733', '#5F6B78', '#E3EAF2', '#F3F8FD'
 LAYER_COL = {'experience': EXP, 'process': PROC, 'system': SYS, 'other': OTHER}
@@ -839,8 +840,8 @@ class Review:
   <div class="card wide"><h4>{e(self.name)} against comparable customers</h4>{bench_bar(r, bench, self.name)}<div class="note">{bench_note}</div></div>
   <div class="{'cols3' if third else 'cols2'} top">
     <div class="card"><h4>How production APIs are consumed</h4>
-      <div class="donut-row">{donut([(RP['consumedMore'], GOOD), (RP['consumedOnce'], FAIR), (RP['consumedNone'], POOR)], top=str(RP['apisTotal']), bot='APIs')}
-      <div class="dleg"><div><i style="background:{GOOD}"></i><b>{RP['consumedMore']}</b> reused (2+ consumers)</div><div><i style="background:{FAIR}"></i><b>{RP['consumedOnce']}</b> single consumer</div><div><i style="background:{POOR}"></i><b>{RP['consumedNone']}</b> no consumers yet</div></div></div>
+      <div class="donut-row">{donut([(RP['consumedMore'], GOOD), (RP['consumedOnce'], FAIR_SOFT), (RP['consumedNone'], POOR_SOFT)], top=str(RP['apisTotal']), bot='APIs')}
+      <div class="dleg"><div><i style="background:{GOOD}"></i><b>{RP['consumedMore']}</b> reused (2+ consumers)</div><div><i style="background:{FAIR_SOFT}"></i><b>{RP['consumedOnce']}</b> single consumer</div><div><i style="background:{POOR_SOFT}"></i><b>{RP['consumedNone']}</b> no consumers yet</div></div></div>
     </div>
     {third}
     <div class="card"><h4>Reuse rate by API layer</h4>{hbar_rows(layer_rows, 100, width=300, label_w=90, unit='%')}</div>
