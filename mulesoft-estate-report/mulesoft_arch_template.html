@@ -17,12 +17,15 @@
   --val:#052D60;
   /* ORDINAL buckets (2+/1/0 consumers, platform tiers, maturity) - one hue, dark->light */
   --ord1:#052D60; --ord2:#5A6B82; --ord3:#A7B2C1;
-  /* REUSE family - orange means "reuse" everywhere (validated --ordinal ramp, dark = most reused) */
-  --reuse1:#B83A0A; --reuse2:#E8702A; --reuse3:#F2A066; --reuse-bg:#FEF1E7; --reuse-tx:#A8350A;
+  /* VERDICT - colour carries good/bad: green good, amber could be better, red poor.
+     3 steps only (validated: CVD + normal-vision pass; a 4th step fails). Always beside a label. */
+  --good:#0B8A3E; --fair:#F2B33D; --poor:#D64545;
+  --good-bg:#E6F4EC; --fair-bg:#FFF4DE; --poor-bg:#FBE7E7;
+  --good-tx:#0B7A3B; --fair-tx:#8A5A00; --poor-tx:#A8322A;
   /* STATUS - reserved, always with a text label */
-  --ok:#0B8A3E; --ok-bg:#E6F4EC; --ok-tx:#0B7A3B;
-  --warn:#F2B33D; --warn-bg:#FFF4DE; --warn-tx:#8A5A00;
-  --bad:#C0392B; --bad-bg:#FDECEA; --bad-tx:#A8322A;
+  --ok:var(--good); --ok-bg:var(--good-bg); --ok-tx:var(--good-tx);
+  --warn:var(--fair); --warn-bg:var(--fair-bg); --warn-tx:var(--fair-tx);
+  --bad:var(--poor); --bad-bg:var(--poor-bg); --bad-tx:var(--poor-tx);
   /* FLOW DIRECTION on Integration Flows only */
   --calls:#1B2733; --calledby:#C2255C;
   --shadow:0 6px 18px rgba(5,45,96,.10),0 1px 3px rgba(5,45,96,.08);
@@ -274,7 +277,7 @@ tbody tr:hover{background:#F7FAFE}
 .reuse-row{display:flex;align-items:center;gap:10px;margin:9px 0;font-size:12.5px}
 .reuse-row .rn{flex:1;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .reuse-row .rbar{height:8px;border-radius:5px;background:#EDF1F6;flex:0 0 130px;overflow:hidden}
-.reuse-row .rbar i{display:block;height:100%;background:var(--reuse2)}
+.reuse-row .rbar i{display:block;height:100%;background:var(--val)}
 .reuse-row .rv{font-weight:800;color:var(--title);width:26px;text-align:right}
 .rec{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid #EEF2F7}
 .rec:last-child{border-bottom:0}
@@ -1288,10 +1291,10 @@ function renderReuse(){
 
   // Maturity band from reuse rate
   const rr = ra.reuseRate;
-  const maturity = rr >= 0.50 ? {label:'Mature API-Led',  color:'var(--reuse-tx)', bg:'#FBDCC4', bar:'var(--reuse1)', desc:'API-led operating at full scale. Assets are systematically shared and reused across the organisation as business-as-usual.'}
-                : rr >= 0.40 ? {label:'Industrialised',   color:'var(--reuse-tx)', bg:'#FCE6D5', bar:'var(--reuse2)', desc:'API-led embedded in business-as-usual. Self-service production and consumption model is operationalised.'}
-                : rr >= 0.20 ? {label:'Developing',        color:'var(--reuse-tx)', bg:'#FDEFE4', bar:'var(--reuse3)', desc:'API-led practices established in core programs. Reuse is growing but not yet systematic across the organisation.'}
-                :              {label:'Incubating',         color:'var(--reuse-tx)', bg:'#FEF6F0', bar:'#F7C29C', desc:'API-led practices are in early stages. Most integrations are point-to-point with limited shared-asset reuse.'};
+  const maturity = rr >= 0.50 ? {label:'Mature API-Led',  color:'var(--good-tx)', bg:'var(--good-bg)', bar:'var(--good)', fill:'var(--good)', ftx:'#fff', desc:'API-led operating at full scale. Assets are systematically shared and reused across the organisation as business-as-usual.'}
+                : rr >= 0.40 ? {label:'Industrialised',   color:'var(--good-tx)', bg:'var(--good-bg)', bar:'var(--good)', fill:'var(--good)', ftx:'#fff', desc:'API-led embedded in business-as-usual. Self-service production and consumption model is operationalised.'}
+                : rr >= 0.20 ? {label:'Developing',        color:'var(--fair-tx)', bg:'var(--fair-bg)', bar:'var(--fair)', fill:'var(--fair)', ftx:'#0b0b0b', desc:'API-led practices established in core programs. Reuse is growing but not yet systematic across the organisation.'}
+                :              {label:'Incubating',         color:'var(--poor-tx)', bg:'var(--poor-bg)', bar:'var(--poor)', fill:'var(--poor)', ftx:'#fff', desc:'API-led practices are in early stages. Most integrations are point-to-point with limited shared-asset reuse.'};
 
   // Benchmark reference values — avg derived from peer set in ANA Industry Data Matrix
   // (falls back to MuleSoft global average of 38% if matrix was unavailable at build time)
@@ -1304,9 +1307,9 @@ function renderReuse(){
   // Donut breakdown values
   const total = ra.apisTotal;
   const segments = [
-    {label:'Multiple consumers', count:ra.consumedMore, color:'var(--reuse1)',   pctVal: ra.apisTotal ? ra.consumedMore/ra.apisTotal : 0},
-    {label:'Single consumer',    count:ra.consumedOnce, color:'var(--reuse2)', pctVal: ra.apisTotal ? ra.consumedOnce/ra.apisTotal : 0},
-    {label:'No consumers yet',   count:ra.consumedNone, color:'var(--reuse3)',      pctVal: ra.apisTotal ? ra.consumedNone/ra.apisTotal : 0},
+    {label:'Multiple consumers', count:ra.consumedMore, color:'var(--good)',   pctVal: ra.apisTotal ? ra.consumedMore/ra.apisTotal : 0},
+    {label:'Single consumer',    count:ra.consumedOnce, color:'var(--fair)', pctVal: ra.apisTotal ? ra.consumedOnce/ra.apisTotal : 0},
+    {label:'No consumers yet',   count:ra.consumedNone, color:'var(--poor)',      pctVal: ra.apisTotal ? ra.consumedNone/ra.apisTotal : 0},
   ];
 
   // SVG donut (simple arc segments)
@@ -1420,15 +1423,15 @@ function renderReuse(){
                 <span style="font-size:11.5px;font-weight:700;color:var(--title)">${pct(s.reuseRate)} reuse</span>
               </div>
               <div style="display:flex;gap:2px;border-radius:99px;overflow:hidden;height:8px;background:var(--line)">
-                ${moreW > 0 ? `<div style="width:${moreW}%;background:var(--reuse1)" title="${s.more} with 2+ consumers"></div>` : ''}
-                ${onceW > 0 ? `<div style="width:${onceW}%;background:var(--reuse2)" title="${s.once} with 1 consumer"></div>` : ''}
-                ${noneW > 0 ? `<div style="width:${noneW}%;background:var(--reuse3)" title="${s.none} with no consumers"></div>` : ''}
+                ${moreW > 0 ? `<div style="width:${moreW}%;background:var(--good)" title="${s.more} with 2+ consumers"></div>` : ''}
+                ${onceW > 0 ? `<div style="width:${onceW}%;background:var(--fair)" title="${s.once} with 1 consumer"></div>` : ''}
+                ${noneW > 0 ? `<div style="width:${noneW}%;background:var(--poor)" title="${s.none} with no consumers"></div>` : ''}
               </div>
             </div>`;
           }).join('');
         })()}
         <div style="display:flex;gap:14px;margin-top:10px">
-          ${[['2+ consumers','var(--reuse1)'],['1 consumer','var(--reuse2)'],['No consumers','var(--reuse3)']].map(([l,c])=>`
+          ${[['2+ consumers','var(--good)'],['1 consumer','var(--fair)'],['No consumers','var(--poor)']].map(([l,c])=>`
           <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted)">
             <span style="width:8px;height:8px;border-radius:2px;background:${c};flex-shrink:0"></span>${l}
           </div>`).join('')}
@@ -1485,7 +1488,7 @@ function renderReuse(){
           <span style="font-size:12px;font-weight:700;color:var(--title)">${pct(rr)}</span>
         </div>
         <div style="background:var(--line);border-radius:99px;height:10px;position:relative">
-          <div style="height:10px;border-radius:99px;background:var(--reuse2);width:${barPct}%;transition:width .6s"></div>
+          <div style="height:10px;border-radius:99px;background:${rr >= BENCH_AVG ? 'var(--good)' : rr >= BENCH_AVG - 0.10 ? 'var(--fair)' : 'var(--poor)'};width:${barPct}%;transition:width .6s"></div>
         </div>
       </div>
 
@@ -1502,10 +1505,10 @@ function renderReuse(){
 
       <!-- Maturity stages -->
       <div style="display:flex;gap:0;border-radius:8px;overflow:hidden;margin-bottom:10px">
-        ${[{l:'Incubating',pct:'20%',c:'#FEF6F0',tc:'#A8350A'},{l:'Developing',pct:'40%',c:'#FDEFE4',tc:'#A8350A'},{l:'Industrialised',pct:'50%',c:'#FCE6D5',tc:'#A8350A'},{l:'Mature API-Led',pct:'50%+',c:'#FBDCC4',tc:'#A8350A'}].map(s=>`
-        <div style="flex:1;padding:8px 6px;text-align:center;${s.l===maturity.label ? 'background:var(--reuse1);color:#fff' : `background:${s.c}`}">
-          <div style="font-size:10px;font-weight:700;color:${s.l===maturity.label ? '#fff' : s.tc}">${s.l}${s.l===maturity.label ? ' ✓' : ''}</div>
-          <div style="font-size:10px;color:${s.l===maturity.label ? '#FDE3D0' : 'var(--muted)'}">&lt;${s.pct}</div>
+        ${[{l:'Incubating',pct:'20%',c:'var(--poor-bg)',tc:'var(--poor-tx)'},{l:'Developing',pct:'40%',c:'var(--fair-bg)',tc:'var(--fair-tx)'},{l:'Industrialised',pct:'50%',c:'var(--good-bg)',tc:'var(--good-tx)'},{l:'Mature API-Led',pct:'50%+',c:'var(--good-bg)',tc:'var(--good-tx)'}].map(s=>`
+        <div style="flex:1;padding:8px 6px;text-align:center;${s.l===maturity.label ? `background:${maturity.fill};color:${maturity.ftx}` : `background:${s.c}`}">
+          <div style="font-size:10px;font-weight:700;color:${s.l===maturity.label ? maturity.ftx : s.tc}">${s.l}${s.l===maturity.label ? ' ✓' : ''}</div>
+          <div style="font-size:10px;color:${s.l===maturity.label ? maturity.ftx : 'var(--muted)'}">&lt;${s.pct}</div>
         </div>`).join('')}
       </div>
 
@@ -1519,10 +1522,10 @@ function renderReuse(){
     const bgs = (DATA.reuseAnalysis || {}).byBG || [];
     if(bgs.length <= 1) return '';   // only show if multiple BGs exist
 
-    const maturityOf = r => r >= 0.50 ? {label:'Mature API-Led',color:'var(--reuse-tx)',bg:'#FBDCC4',bar:'var(--reuse1)'}
-                          : r >= 0.40 ? {label:'Industrialised', color:'var(--reuse-tx)',bg:'#FCE6D5',bar:'var(--reuse2)'}
-                          : r >= 0.20 ? {label:'Developing',     color:'var(--reuse-tx)',bg:'#FDEFE4',bar:'var(--reuse3)'}
-                          :             {label:'Incubating',     color:'var(--reuse-tx)',bg:'#FEF6F0',bar:'#F7C29C'};
+    const maturityOf = r => r >= 0.50 ? {label:'Mature API-Led',color:'var(--good-tx)',bg:'var(--good-bg)',bar:'var(--good)'}
+                          : r >= 0.40 ? {label:'Industrialised', color:'var(--good-tx)',bg:'var(--good-bg)',bar:'var(--good)'}
+                          : r >= 0.20 ? {label:'Developing',     color:'var(--fair-tx)',bg:'var(--fair-bg)',bar:'var(--fair)'}
+                          :             {label:'Incubating',     color:'var(--poor-tx)',bg:'var(--poor-bg)',bar:'var(--poor)'};
 
     const bgRows = bgs.map((bg, i) => {
       const m = maturityOf(bg.reuseRate);
