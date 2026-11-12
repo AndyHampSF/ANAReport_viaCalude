@@ -17,7 +17,7 @@ body { margin: 0; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; 
 .cover-stats span { font-size: 10pt; opacity: .85; margin-top: 4px; }
 .cover-foot { font-size: 9pt; opacity: .7; }
 .sec-head { border-bottom: 2px solid $LINE; padding-bottom: 6px; margin-bottom: 12px; }
-.sec-no { text-transform: uppercase; letter-spacing: 1.6px; font-size: 9pt; color: $PROC; font-weight: 700; }
+.sec-no { text-transform: uppercase; letter-spacing: 1.6px; font-size: 9pt; color: $MUTED; font-weight: 700; }
 h2 { margin: 2px 0 0; font-size: 21pt; color: $NAVY; font-weight: 700; }
 h3 { font-size: 13pt; margin: 0 0 8px; color: $NAVY; }
 h4 { font-size: 10.5pt; margin: 0 0 10px; color: $NAVY; display: flex; justify-content: space-between; align-items: center; }
@@ -36,16 +36,16 @@ h4 { font-size: 10.5pt; margin: 0 0 10px; color: $NAVY; display: flex; justify-c
 .card { border: 1px solid $LINE; border-radius: 12px; padding: 12px 14px; }
 .card.wide { margin-bottom: 10px; }
 .note { font-size: 8.3pt; color: $MUTED; margin-top: 6px; }
-.ins { border-left: 3px solid $PROC; padding: 2px 0 2px 11px; margin-bottom: 10px; }
+.ins { border-left: 3px solid $ACCENT; padding: 2px 0 2px 11px; margin-bottom: 10px; }
 .ins-t { font-weight: 700; font-size: 10.5pt; color: $NAVY; }
 .ins-b { font-size: 9.6pt; line-height: 1.42; color: $INK; margin-top: 2px; }
-.cols3 .ins { border: 1px solid $LINE; border-left: 3px solid $PROC; border-radius: 8px; padding: 9px 11px; }
+.cols3 .ins { border: 1px solid $LINE; border-left: 3px solid $ACCENT; border-radius: 8px; padding: 9px 11px; }
 ul.ticks, ul.arrows { list-style: none; padding: 0; margin: 0; }
 ul.ticks li, ul.arrows li { font-size: 10.2pt; line-height: 1.42; padding: 6px 0 6px 22px; position: relative; border-bottom: 1px solid $LINE; }
-ul.ticks li::before { content: "✓"; position: absolute; left: 0; color: $PROC; font-weight: 700; }
-ul.arrows li::before { content: "→"; position: absolute; left: 0; color: $SYS; font-weight: 700; }
-.good { color: $PROC; } .next { color: $SYS; }
-.callout { display: flex; gap: 14px; align-items: center; background: linear-gradient(90deg, #E3F4F3, #EEF0FF); border-radius: 12px; padding: 11px 16px; margin-top: 12px; font-size: 10.2pt; line-height: 1.4; }
+ul.ticks li::before { content: "✓"; position: absolute; left: 0; color: $RUN; font-weight: 700; }
+ul.arrows li::before { content: "→"; position: absolute; left: 0; color: $NAVY; font-weight: 700; }
+.good { color: $OKTX; } .next { color: $NAVY; }
+.callout { display: flex; gap: 14px; align-items: center; background: $BAND; border: 1px solid $LINE; border-radius: 12px; padding: 11px 16px; margin-top: 12px; font-size: 10.2pt; line-height: 1.4; }
 .callout-k { font-weight: 700; color: $NAVY; white-space: nowrap; text-transform: uppercase; font-size: 8.8pt; letter-spacing: 1px; }
 .leg { font-size: 8.3pt; font-weight: 500; color: $MUTED; display: flex; gap: 8px; align-items: center; }
 .leg i, .leg2 i, .dleg i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
@@ -64,13 +64,13 @@ ul.arrows li::before { content: "→"; position: absolute; left: 0; color: $SYS;
 .tile { background: #fff; border-left: 3px solid; border-radius: 4px; padding: 2px 7px; font-size: 7.8pt; display: inline-flex; align-items: center; gap: 4px; }
 .badge { background: $NAVY; color: #fff; border-radius: 8px; padding: 0 5px; font-size: 7.5pt; }
 .recs .rec { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid $LINE; font-size: 9.6pt; line-height: 1.4; }
-.recs .rec b { flex: 0 0 22px; height: 22px; border-radius: 6px; background: $BAND; color: $SYS; display: flex; align-items: center; justify-content: center; font-size: 10pt; }
+.recs .rec b { flex: 0 0 22px; height: 22px; border-radius: 6px; background: $BAND; color: $NAVY; display: flex; align-items: center; justify-content: center; font-size: 10pt; }
 .recs strong { color: $NAVY; }
 .donut-row { display: flex; align-items: center; gap: 12px; }
 .dleg div { font-size: 9pt; margin: 5px 0; }
 .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 4px; }
-.step { border: 1px solid $LINE; border-radius: 12px; padding: 14px; border-top: 4px solid $PROC; }
-.step span { font-size: 20pt; font-weight: 700; color: $SYS; }
+.step { border: 1px solid $LINE; border-radius: 12px; padding: 14px; border-top: 4px solid $NAVY; }
+.step span { font-size: 20pt; font-weight: 700; color: $NAVY; }
 .step h4 { margin: 4px 0 6px; font-size: 12pt; }
 .step p { font-size: 9.8pt; line-height: 1.42; margin: 0; }
 .method { margin-top: 14px; background: $BAND; border-radius: 12px; padding: 12px 16px; }

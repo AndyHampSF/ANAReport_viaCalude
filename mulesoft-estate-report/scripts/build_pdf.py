@@ -65,8 +65,17 @@ OU_MAP = SKILL_DIR / 'data' / 'customer_ou_map.json'
 RUN_STATES = ('RUNNING', 'STARTED', 'SCALING')
 
 # Palettes validated with the dataviz validator (light surface #ffffff)
+# One colour, one job (validated with the dataviz validator):
+#   LAYER identity only ...... EXP / PROC / SYS / OTHER
+#   VALUE (plain magnitude) .. VAL
+#   ORDINAL buckets .......... ORD1 > ORD2 > ORD3 (2+/1/0 consumers, platform tiers)
+#   STATUS (with a label) .... RUN (ok) / STOP (warning)
 EXP, PROC, SYS = '#1E64B0', '#0BA49B', '#5E66F9'
-RUN, STOP, OTHER = '#0BA49B', '#D08A1E', '#9AA5B1'
+OTHER = '#9AA5B1'
+VAL = '#052D60'
+ORD1, ORD2, ORD3 = '#052D60', '#5A6B82', '#A7B2C1'
+RUN, STOP = '#0B8A3E', '#F2B33D'
+ACCENT = '#0B7A3B'   # page accents (section numbers, ticks) - not a data colour
 NAVY, INK, MUTED, LINE, BAND = '#052D60', '#1B2733', '#5F6B78', '#E3EAF2', '#F3F8FD'
 LAYER_COL = {'experience': EXP, 'process': PROC, 'system': SYS, 'other': OTHER}
 MONTHS = 'January February March April May June July August September October November December'.split()
@@ -149,12 +158,12 @@ def donut(segs, size=150, stroke=24, top='', bot=''):
 def bench_bar(value, bench, name, width=760):
     H = 92; x0, x1 = 10, width - 10; sc = lambda p: x0 + (x1 - x0) * min(max(p, 0), 1)
     bands = [(0, .2, 'Incubating'), (.2, .4, 'Developing'), (.4, .5, 'Industrialised'), (.5, 1, 'Mature API-led')]
-    shade = ['#F6EFE4', '#EEF0FF', '#E3F4F3', '#E5F3EC']
+    shade = ['#F6F8FA', '#F1F4F8', '#EBEFF5', '#E3E9F1']
     out = [f'<svg viewBox="0 0 {width} {H}" width="{width}" height="{H}">']
     for (a, b, lab), s in zip(bands, shade):
         out.append(f'<rect x="{sc(a)}" y="30" width="{sc(b)-sc(a)-2}" height="22" fill="{s}" rx="3"/>')
         out.append(f'<text x="{(sc(a)+sc(b))/2}" y="66" text-anchor="middle" class="t-band">{lab}</text>')
-    out.append(f'<rect x="{sc(0)}" y="36" width="{max(4, sc(value)-sc(0))}" height="10" rx="4" fill="{PROC}"/>')
+    out.append(f'<rect x="{sc(0)}" y="36" width="{max(4, sc(value)-sc(0))}" height="10" rx="4" fill="{VAL}"/>')
     bx = sc(bench)
     out.append(f'<line x1="{bx}" y1="24" x2="{bx}" y2="56" stroke="{INK}" stroke-width="2"/>')
     out.append(f'<text x="{bx}" y="18" text-anchor="middle" class="t-lab">Peer average {bench:.1%}</text>')
@@ -607,8 +616,8 @@ class Review:
         bg_rows = [(b['name'], b['running'], b['total'], '') for b in self.BGS][:10]
         bg_chart = run_stop_rows(bg_rows, label_w=150) if bg_rows else ''
         tg = self.targets
-        order = [('CH2.0 - private-space', NAVY, 'CH2.0 private space'), ('CH2.0 - shared-space', PROC, 'CH2.0 shared space'),
-                 ('CH1.0', STOP, 'CloudHub 1.0'), ('SERVER', SYS, 'Customer-hosted')]
+        order = [('CH2.0 - private-space', ORD1, 'CH2.0 private space'), ('CH2.0 - shared-space', ORD2, 'CH2.0 shared space'),
+                 ('CH1.0', ORD3, 'CloudHub 1.0'), ('SERVER', '#D5DCE5', 'Customer-hosted')]
         parts = [(tg[k], c) for k, c, _ in order if tg.get(k)]
         legend = ''.join(f'<span><i style="background:{c}"></i>{lab} · {tg[k]}</span>' for k, c, lab in order if tg.get(k))
         platform = (f'<h4 style="margin-top:18px">Runtime platform</h4>{stacked_bar(parts)}<div class="leg2">{legend}</div>'
@@ -654,7 +663,7 @@ class Review:
     def backends(self):
         K = self.K
         be = [b for b in self.D['backends'] if b['in'] > 0][:14]
-        chart = (hbar_rows([(b['label'], b['in'], NAVY) for b in be], max(b['in'] for b in be), label_w=200)
+        chart = (hbar_rows([(b['label'], b['in'], VAL) for b in be], max(b['in'] for b in be), label_w=200)
                  if be else '<p class="note">No backend connections recorded.</p>')
         cats = Counter(b['category'] for b in self.D['backends'] if b['in'] > 0)
         single = sum(1 for b in self.D['backends'] if b['in'] == 1)
@@ -788,7 +797,7 @@ class Review:
         r = RP['reuseRate']; bl = RP.get('byLayer') or {}
         layer_rows = [(k.capitalize(), round(bl[k]['reuseRate'] * 100, 1), LAYER_COL[k])
                       for k in ('experience', 'process', 'system', 'other') if k in bl]
-        bg_rows = [(b['bg'], round(b['reuseRate'] * 100, 1), PROC if b['reuseRate'] > 0 else OTHER) for b in self.by_bg][:8]
+        bg_rows = [(b['bg'], round(b['reuseRate'] * 100, 1), VAL) for b in self.by_bg][:8]
         third = (f'<div class="card"><h4>Reuse rate by business group</h4>{hbar_rows(bg_rows, 100, width=300, label_w=150, unit="%")}</div>'
                  if len(bg_rows) >= 2 else '')
         bench = self.bench if self.bench is not None else .38
@@ -828,8 +837,8 @@ class Review:
   <div class="card wide"><h4>{e(self.name)} against comparable customers</h4>{bench_bar(r, bench, self.name)}<div class="note">{bench_note}</div></div>
   <div class="{'cols3' if third else 'cols2'} top">
     <div class="card"><h4>How production APIs are consumed</h4>
-      <div class="donut-row">{donut([(RP['consumedMore'], PROC), (RP['consumedOnce'], SYS), (RP['consumedNone'], '#D8E3F0')], top=str(RP['apisTotal']), bot='APIs')}
-      <div class="dleg"><div><i style="background:{PROC}"></i><b>{RP['consumedMore']}</b> reused (2+ consumers)</div><div><i style="background:{SYS}"></i><b>{RP['consumedOnce']}</b> single consumer</div><div><i style="background:#D8E3F0"></i><b>{RP['consumedNone']}</b> no consumers yet</div></div></div>
+      <div class="donut-row">{donut([(RP['consumedMore'], ORD1), (RP['consumedOnce'], ORD2), (RP['consumedNone'], ORD3)], top=str(RP['apisTotal']), bot='APIs')}
+      <div class="dleg"><div><i style="background:{ORD1}"></i><b>{RP['consumedMore']}</b> reused (2+ consumers)</div><div><i style="background:{ORD2}"></i><b>{RP['consumedOnce']}</b> single consumer</div><div><i style="background:{ORD3}"></i><b>{RP['consumedNone']}</b> no consumers yet</div></div></div>
     </div>
     {third}
     <div class="card"><h4>Reuse rate by API layer</h4>{hbar_rows(layer_rows, 100, width=300, label_w=90, unit='%')}</div>
@@ -857,7 +866,7 @@ class Review:
 
     def document(self):
         css = CSS_FILE.read_text('utf-8')
-        for k, v in dict(BAND=BAND, INK=INK, LINE=LINE, MUTED=MUTED, NAVY=NAVY, PROC=PROC, RUN=RUN, SYS=SYS,
+        for k, v in dict(BAND=BAND, INK=INK, LINE=LINE, MUTED=MUTED, NAVY=NAVY, ACCENT=ORD3, OKTX=ACCENT, RUN=RUN,
                          FOOTER=f'{self.name} · MuleSoft Integration Architecture Review').items():
             css = css.replace('$' + k, v)
         css += ('\n.t-val-inv { font-size: 9px; fill: #fff; font-weight: 700; font-family: inherit; }\n'

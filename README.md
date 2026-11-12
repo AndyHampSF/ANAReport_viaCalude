@@ -178,6 +178,27 @@ its `numberOfClientApplications`.
 
 ## Change log
 
+### 2026-11-12: colour rationalised - one colour, one job
+
+Colours were doing several jobs at once: teal meant the Process layer, "running", "2+
+consumers", a good score and plain values, sometimes on the same card. Every colour now has
+one job, in both the HTML report and the PDF (tokens at the top of the template and of
+`build_pdf.py`):
+
+| Job | Colours | Used for |
+|---|---|---|
+| Layer identity | Exp `#1E64B0`, Proc `#0BA49B`, Sys `#5E66F9`, Other `#9AA5B1` | only "this is an X API" |
+| Value | navy `#052D60` | plain magnitudes, count badges, numbers |
+| Ordered buckets | navy ramp `#052D60` > `#5A6B82` > `#A7B2C1` | 2+/1/0 consumers, CloudHub tiers, maturity stages |
+| Status (with a label) | green `#0B8A3E`, amber `#F2B33D`, red | running/stopped, good/review, confidence |
+| Flow direction | dark `#1B2733` calls, magenta `#C2255C` called by | Integration Flows highlight only |
+
+- Experience changes from navy to blue in the HTML, matching the PDF and the circular view.
+- Numbers wear text colours; page accents (section labels, callouts) are neutral.
+- All sets checked with the dataviz palette validator (lightness, chroma, colour-blind
+  separation, contrast; ordinal ramps with `--ordinal`). The brand header/cover gradient is
+  unchanged. **No data changed** (regression check identical for every export).
+
 ### 2026-11-12: Platform Health insight; data-driven health and vCore text
 
 - New `platformHealth` in DATA, shown as a **Platform Health** card on MuleSoft Insights, with

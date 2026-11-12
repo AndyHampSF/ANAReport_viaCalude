@@ -150,6 +150,15 @@ HTML and the PDF stay in step. Then look at every PDF page (render the print HTM
 `build_pdf.py --keep-html` with headless Chrome if you can't view PDFs) before telling the user
 it's ready.
 
+### Colour rules (don't break them)
+
+Each colour has exactly one job; the tokens are defined at the top of
+`mulesoft_arch_template.html` (`--exp/--proc/--sys/--oth`, `--val`, `--ord1..3`, `--ok/--warn/--bad`,
+`--calls/--calledby`) and of `build_pdf.py`. Layer colours only ever mean an API layer; plain
+values use `--val`; ordered buckets use the `--ord` ramp; good/bad states use status colours with
+a text label. When adding a chart or card, pick the token by the job, never by what looks nice,
+and validate any new colour with the dataviz skill's `validate_palette.js`.
+
 ### Changing the script
 
 If a fix to `build_data.py` is needed, explain the problem and the proposed change and get

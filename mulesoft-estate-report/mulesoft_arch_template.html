@@ -11,7 +11,18 @@
   --badge-bg:#F1F1F1; --badge-text:#002196; --mule:#00A0DF;
   --line:#D8E3F0; --ink:#1B2733; --muted:#7B8794;
   --card:#FFFFFF; --bg:#F4F7FB;
-  --exp:var(--navy); --proc:var(--teal); --sys:var(--indigo);
+  /* LAYER identity only (validated: lightness, chroma, CVD, contrast) */
+  --exp:#1E64B0; --proc:#0BA49B; --sys:#5E66F9; --oth:#9AA5B1;
+  /* VALUE: plain magnitudes, count badges, numbers */
+  --val:#052D60;
+  /* ORDINAL buckets (2+/1/0 consumers, platform tiers, maturity) - one hue, dark->light */
+  --ord1:#052D60; --ord2:#5A6B82; --ord3:#A7B2C1;
+  /* STATUS - reserved, always with a text label */
+  --ok:#0B8A3E; --ok-bg:#E6F4EC; --ok-tx:#0B7A3B;
+  --warn:#F2B33D; --warn-bg:#FFF4DE; --warn-tx:#8A5A00;
+  --bad:#C0392B; --bad-bg:#FDECEA; --bad-tx:#A8322A;
+  /* FLOW DIRECTION on Integration Flows only */
+  --calls:#1B2733; --calledby:#C2255C;
   --shadow:0 6px 18px rgba(5,45,96,.10),0 1px 3px rgba(5,45,96,.08);
   --shadow-sm:0 2px 6px rgba(5,45,96,.10);
 }
@@ -82,12 +93,12 @@ h2.sec{font-size:17px;color:var(--title);margin:0 0 4px;font-weight:700}
 .envbar .top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px}
 .envbar .top .nm{font-weight:600;color:var(--ink)}
 .envbar .top .nm .tag{font-size:10px;font-weight:700;padding:1px 7px;border-radius:6px;margin-left:7px;text-transform:uppercase;letter-spacing:.4px}
-.tag.prod{background:#E7F6EF;color:#0B7A4B}
+.tag.prod{background:var(--ok-bg);color:var(--ok-tx)}
 .tag.sandbox{background:#EEF0FF;color:#4A52D6}
 .envbar .top .ct{color:var(--muted);font-weight:600}
 .track{height:10px;border-radius:6px;background:#EDF1F6;overflow:hidden;display:flex}
-.track .run{background:linear-gradient(90deg,#0BA49B,#12C2B6)}
-.track .stop{background:#E6A23C}
+.track .run{background:var(--ok)}
+.track .stop{background:var(--warn)}
 .legend{display:flex;gap:16px;font-size:11.5px;color:var(--muted);margin-top:10px}
 .legend span{display:flex;align-items:center;gap:6px}
 .dot{width:9px;height:9px;border-radius:3px;display:inline-block}
@@ -96,7 +107,7 @@ h2.sec{font-size:17px;color:var(--title);margin:0 0 4px;font-weight:700}
 .chips{display:flex;flex-wrap:wrap;gap:9px}
 .chip{background:var(--band);border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:12.5px;color:var(--ink);
   display:flex;align-items:center;gap:8px;font-weight:600}
-.chip b{color:var(--indigo);font-weight:800}
+.chip b{color:var(--val);font-weight:800}
 .lgroup{display:flex;flex-wrap:wrap;gap:8px}
 .lchip{font-size:12px;padding:5px 11px;border-radius:8px;color:#fff;font-weight:700}
 
@@ -119,11 +130,11 @@ h2.sec{font-size:17px;color:var(--title);margin:0 0 4px;font-weight:700}
 .lane.experience .side{background:var(--exp)}
 .lane.process .side{background:var(--proc)}
 .lane.system .side{background:var(--sys)}
-.lane.other .side{background:#9AA5B1}
+.lane.other .side{background:var(--oth)}
 .api .badges{position:absolute;top:-7px;right:-7px;display:flex;gap:4px;align-items:center}
 .api .badges .badge{position:static}
-.api .badge.calls,.api .badge.fromint{background:var(--sys)}
-.isopill{display:inline-block;margin-left:8px;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;text-transform:uppercase;letter-spacing:.3px;color:#B9770E;background:#FFF3E0;border:1px solid #F0D9B0;vertical-align:1px}
+.api .badge.calls,.api .badge.fromint{background:var(--ord2)}
+.isopill{display:inline-block;margin-left:8px;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;text-transform:uppercase;letter-spacing:.3px;color:var(--warn-tx);background:var(--warn-bg);border:1px solid #F0D9B0;vertical-align:1px}
 .lane .band{flex:1;background:var(--band);padding:14px;display:grid;
   grid-template-columns:repeat(auto-fill,minmax(224px,1fr));gap:10px;align-content:start;align-items:stretch}
 .api{background:#fff;border-radius:9px;box-shadow:var(--shadow-sm);padding:9px 12px 9px 9px;display:flex;align-items:center;gap:9px;
@@ -135,7 +146,7 @@ h2.sec{font-size:17px;color:var(--title);margin:0 0 4px;font-weight:700}
 .api .nm{font-size:11.5px;font-weight:600;color:var(--ink);line-height:1.22;word-break:break-word}
 .api .badge{position:absolute;top:-7px;right:-7px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--navy);
   color:#fff;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm)}
-.api .dtag{font-size:9px;color:#fff;background:var(--teal);padding:1px 6px;border-radius:5px;font-weight:700;margin-top:3px;display:inline-block}
+.api .dtag{font-size:9px;color:#fff;background:var(--ord2);padding:1px 6px;border-radius:5px;font-weight:700;margin-top:3px;display:inline-block}
 .archnote{font-size:11.5px;color:var(--muted);margin-top:12px;display:flex;gap:20px;flex-wrap:wrap}
 .archnote span{display:flex;align-items:center;gap:7px}
 
@@ -184,8 +195,8 @@ svg.dim .gedge{opacity:.05}
 svg.dim .gnode{opacity:.18}
 svg.dim .gnode.hl{opacity:1}
 /* Selected tile: blue = calls (outgoing), amber = called by (incoming). Arrowheads carry direction too. */
-#flowsvg .gedge.out{opacity:1;stroke:#1E64B0;stroke-width:2.2}
-#flowsvg .gedge.in{opacity:1;stroke:#C77700;stroke-width:2.2}
+#flowsvg .gedge.out{opacity:1;stroke:var(--calls);stroke-width:2.2}
+#flowsvg .gedge.in{opacity:1;stroke:var(--calledby);stroke-width:2.2}
 .gnode{cursor:pointer;opacity:1;transition:.15s}
 .gnode .gcard{fill:#fff;stroke:var(--line);stroke-width:1}
 .gnode:hover .gcard{stroke:#9AA5B1}
@@ -208,14 +219,14 @@ tbody td{padding:9px 14px;border-bottom:1px solid #EEF2F7;color:var(--ink)}
 tbody tr:hover{background:#F7FAFE}
 .lpill{font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.3px;color:#fff}
 .lpill.experience{background:var(--exp)} .lpill.process{background:var(--proc)}
-.lpill.system{background:var(--sys)} .lpill.other{background:#9AA5B1}
+.lpill.system{background:var(--sys)} .lpill.other{background:var(--oth)}
 .st{display:inline-flex;align-items:center;gap:6px;font-weight:600}
 .st .dot{width:8px;height:8px;border-radius:50%}
-.st.RUNNING .dot{background:#12B886} .st.RUNNING{color:#0B7A4B}
-.st.STARTED .dot{background:#12B886} .st.STARTED{color:#0B7A4B}
-.st.NOT_RUNNING .dot{background:#E6A23C} .st.NOT_RUNNING{color:#B9770E}
+.st.RUNNING .dot{background:var(--ok)} .st.RUNNING{color:var(--ok-tx)}
+.st.STARTED .dot{background:var(--ok)} .st.STARTED{color:var(--ok-tx)}
+.st.NOT_RUNNING .dot{background:var(--warn)} .st.NOT_RUNNING{color:var(--warn-tx)}
 .st.UNDEPLOYED .dot{background:#ADB5BD} .st.UNDEPLOYED{color:#6C757D}
-.st.SCALING .dot{background:#12B886} .st.SCALING{color:#0B7A4B}
+.st.SCALING .dot{background:var(--ok)} .st.SCALING{color:var(--ok-tx)}
 .etag{font-size:10px;font-weight:700;padding:1px 7px;border-radius:6px}
 
 /* ── Backend cards ──────────────────────────────────── */
@@ -226,7 +237,7 @@ tbody tr:hover{background:#F7FAFE}
 .sys .ic img{width:28px;height:28px;object-fit:contain}
 .sys .nm{font-size:13.5px;font-weight:700;color:var(--title);line-height:1.2}
 .sys .cat{font-size:11px;color:var(--muted);margin-top:2px;font-weight:600}
-.sys .conns{font-size:11px;color:var(--indigo);margin-top:7px;font-weight:700}
+.sys .conns{font-size:11px;color:var(--val);margin-top:7px;font-weight:700}
 
 /* ── Business Groups ────────────────────────────────── */
 .bg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:24px}
@@ -235,13 +246,13 @@ tbody tr:hover{background:#F7FAFE}
 .bg-card .bg-name{font-size:13.5px;font-weight:700;color:var(--title);line-height:1.2;max-width:160px}
 .bg-card .bg-pills{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
 .bg-pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;text-transform:uppercase;letter-spacing:.3px}
-.bg-pill.prod{background:#E7F6EF;color:#0B7A4B}
+.bg-pill.prod{background:var(--ok-bg);color:var(--ok-tx)}
 .bg-pill.sandbox{background:#EEF0FF;color:#4A52D6}
 .bg-stat{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;color:var(--ink)}
 .bg-stat .bgs-lbl{color:var(--muted);font-weight:600}
 .bg-stat .bgs-val{font-weight:700}
 .bg-health{height:8px;border-radius:5px;background:#EDF1F6;overflow:hidden;margin-bottom:12px}
-.bg-health .bgh-run{height:100%;background:linear-gradient(90deg,#0BA49B,#12C2B6);border-radius:5px}
+.bg-health .bgh-run{height:100%;background:var(--ok);border-radius:5px}
 .bg-layers{height:8px;border-radius:5px;overflow:hidden;display:flex;margin-top:4px}
 .bg-layers .bgl-exp{background:var(--exp)}
 .bg-layers .bgl-proc{background:var(--proc)}
@@ -261,16 +272,16 @@ tbody tr:hover{background:#F7FAFE}
 .reuse-row{display:flex;align-items:center;gap:10px;margin:9px 0;font-size:12.5px}
 .reuse-row .rn{flex:1;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .reuse-row .rbar{height:8px;border-radius:5px;background:#EDF1F6;flex:0 0 130px;overflow:hidden}
-.reuse-row .rbar i{display:block;height:100%;background:linear-gradient(90deg,var(--indigo),#8A90FF)}
-.reuse-row .rv{font-weight:800;color:var(--indigo);width:26px;text-align:right}
+.reuse-row .rbar i{display:block;height:100%;background:var(--val)}
+.reuse-row .rv{font-weight:800;color:var(--title);width:26px;text-align:right}
 .rec{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid #EEF2F7}
 .rec:last-child{border-bottom:0}
-.rec .rk{width:26px;height:26px;border-radius:7px;background:var(--band);flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:var(--indigo);font-weight:800;font-size:13px}
+.rec .rk{width:26px;height:26px;border-radius:7px;background:var(--band);flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:var(--title);font-weight:800;font-size:13px}
 .rec .rt{font-size:12.5px} .rec .rt b{color:var(--title)}
 footer{text-align:center;font-size:11px;color:var(--muted);padding:24px;border-top:1px solid var(--line);margin-top:20px}
 .clientlist{display:flex;flex-direction:column;gap:8px}
 .clientlist .ca{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:600;color:var(--ink);background:var(--band);padding:8px 12px;border-radius:8px}
-.clientlist .ca svg{width:15px;height:15px;color:var(--indigo);flex:0 0 auto}
+.clientlist .ca svg{width:15px;height:15px;color:var(--muted);flex:0 0 auto}
 </style>
 </head>
 <body>
@@ -318,7 +329,7 @@ const IC = {
   mulesoft: MULE_SVG,
   timesheet: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#6B4FBB" stroke-width="2"/><path d="M12 8v4.3l3 1.8" stroke="#6B4FBB" stroke-width="2" stroke-linecap="round" fill="none"/></svg>`,
   web: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#0A3E7E" stroke-width="1.8"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" stroke="#0A3E7E" stroke-width="1.5" fill="none"/></svg>`,
-  client: `<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6" fill="#5E66F9"/><rect x="13" y="4" width="7" height="7" rx="1.6" fill="#8A90FF"/><rect x="4" y="13" width="7" height="7" rx="1.6" fill="#8A90FF"/><rect x="13" y="13" width="7" height="7" rx="1.6" fill="#5E66F9"/></svg>`,
+  client: `<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6" fill="#052D60"/><rect x="13" y="4" width="7" height="7" rx="1.6" fill="#5A6B82"/><rect x="4" y="13" width="7" height="7" rx="1.6" fill="#5A6B82"/><rect x="13" y="13" width="7" height="7" rx="1.6" fill="#052D60"/></svg>`,
   service: `<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1.6" fill="#7B8794"/><rect x="4" y="14" width="16" height="6" rx="1.6" fill="#9AA5B1"/><circle cx="8" cy="7" r="1.1" fill="#fff"/><circle cx="8" cy="17" r="1.1" fill="#fff"/></svg>`,
 };
 const icon = k => IC[k] || IC.service;
@@ -434,7 +445,7 @@ function renderOverview(){
         and ${K.sysCount} System APIs connecting backend systems.
         ${K.sysCount >= K.procCount ? 'A wide System tier signals strong reusable connectivity investment.' : 'Growth in reusable Process APIs will compound integration velocity over time.'}
       </p>
-      ${DATA.deploymentCoverage ? `<p style="font-size:11.5px;color:var(--muted);margin:12px 0 0;padding-top:10px;border-top:1px solid var(--line)"><b style="color:var(--text)">${DATA.deploymentCoverage.mapped} of ${DATA.deploymentCoverage.prodTotal}</b> production apps appear in the dependency graph${DATA.deploymentCoverage.isolated>0 ? `; <b style="color:#B9770E">${DATA.deploymentCoverage.isolated}</b> ${DATA.deploymentCoverage.isolated===1?'is':'are'} isolated (see MuleSoft Insights).` : ', full coverage.'}</p>` : ''}
+      ${DATA.deploymentCoverage ? `<p style="font-size:11.5px;color:var(--muted);margin:12px 0 0;padding-top:10px;border-top:1px solid var(--line)"><b style="color:var(--text)">${DATA.deploymentCoverage.mapped} of ${DATA.deploymentCoverage.prodTotal}</b> production apps appear in the dependency graph${DATA.deploymentCoverage.isolated>0 ? `; <b style="color:var(--warn-tx)">${DATA.deploymentCoverage.isolated}</b> ${DATA.deploymentCoverage.isolated===1?'is':'are'} isolated (see MuleSoft Insights).` : ', full coverage.'}</p>` : ''}
     </div>
     <div class="card">
       <h3>${dico(TICO.inv)} Environment Inventory</h3>
@@ -450,8 +461,8 @@ function renderOverview(){
           </div>
         </div>`).join('')}
       <div class="legend">
-        <span><span class="dot" style="background:linear-gradient(90deg,#0BA49B,#12C2B6)"></span>Running</span>
-        <span><span class="dot" style="background:#E6A23C"></span>Stopped</span>
+        <span><span class="dot" style="background:var(--ok)"></span>Running</span>
+        <span><span class="dot" style="background:var(--warn)"></span>Stopped</span>
       </div>
     </div>
   </div>
@@ -519,7 +530,7 @@ function renderArch(){
       <span style="color:var(--proc)">&#9632; Process</span>
       <span style="color:var(--sys)">&#9632; System</span>
       <span><span style="display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;flex:0 0 auto">3</span>&thinsp;= called by 3+ APIs</span>
-      <span><span style="display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--sys);color:#fff;font-size:10px;font-weight:800;flex:0 0 auto">&#8601;2</span>&thinsp;= called by 2 integration/batch apps</span>
+      <span><span style="display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--ord2);color:#fff;font-size:10px;font-weight:800;flex:0 0 auto">&#8601;2</span>&thinsp;= called by 2 integration/batch apps</span>
     </div>
   </div>
   ${renderIntegrationLadder()}`;
@@ -572,7 +583,7 @@ function renderFlows(){
   return `
   <div class="block">
     <h2 class="sec">Integration Flows</h2>
-    <p class="sec-desc">Every production dependency, in two views: <b>Columns</b> (left to right by API-led layer) or <b>Circular</b> (hierarchical edge bundling, where flows between the same layers bundle together). Arrows point from the caller to what it calls. Click any node to highlight its connections: <b style="color:#1E64B0">blue</b> for what it calls, <b style="color:#C77700">amber</b> for what calls it. Then click a connected node to follow the path. Click it again, or press Esc, to clear. Zoom with the buttons or Ctrl + mouse wheel, and drag the background to pan.</p>
+    <p class="sec-desc">Every production dependency, in two views: <b>Columns</b> (left to right by API-led layer) or <b>Circular</b> (hierarchical edge bundling, where flows between the same layers bundle together). Arrows point from the caller to what it calls. Click any node to highlight its connections: <b style="color:#1B2733">dark</b> for what it calls, <b style="color:#C2255C">magenta</b> for what calls it. Then click a connected node to follow the path. Click it again, or press Esc, to clear. Zoom with the buttons or Ctrl + mouse wheel, and drag the background to pan.</p>
   </div>
   <div class="graph-wrap">
     <div class="graph-controls">
@@ -584,8 +595,8 @@ function renderFlows(){
         <span><svg width="12" height="12"><rect width="12" height="12" rx="2" fill="#7B8794"/></svg> Backend</span>
       </div>
       <div class="dir-key" style="margin-left:auto">
-        <span><svg width="30" height="10"><line x1="1" y1="5" x2="22" y2="5" stroke="#1E64B0" stroke-width="2.2"/><path d="M21,1 L29,5 L21,9 Z" fill="#1E64B0"/></svg> Calls</span>
-        <span><svg width="30" height="10"><line x1="1" y1="5" x2="22" y2="5" stroke="#C77700" stroke-width="2.2"/><path d="M21,1 L29,5 L21,9 Z" fill="#C77700"/></svg> Called by</span>
+        <span><svg width="30" height="10"><line x1="1" y1="5" x2="22" y2="5" stroke="#1B2733" stroke-width="2.2"/><path d="M21,1 L29,5 L21,9 Z" fill="#1B2733"/></svg> Calls</span>
+        <span><svg width="30" height="10"><line x1="1" y1="5" x2="22" y2="5" stroke="#C2255C" stroke-width="2.2"/><path d="M21,1 L29,5 L21,9 Z" fill="#C2255C"/></svg> Called by</span>
       </div>
     </div>
     <div class="graph-controls" style="padding-top:0;border-top:1px solid var(--line);margin:0 14px 10px;padding-bottom:10px">
@@ -683,29 +694,29 @@ function renderIns(){
   const sharedApis = muleNodes.filter(n=>n.in>1).length;
   const sharedPct  = muleNodes.length ? Math.round(sharedApis/muleNodes.length*100) : 0;
   const reuseLabel = sharedPct >= 40 ? 'Mature' : sharedPct >= 20 ? 'Developing' : 'Early stage';
-  const reuseColor = sharedPct >= 40 ? 'var(--teal)' : sharedPct >= 20 ? 'var(--indigo)' : '#E6A23C';
+  const reuseColor = sharedPct >= 40 ? 'var(--ok-tx)' : sharedPct >= 20 ? 'var(--title)' : 'var(--warn-tx)';
   const healthPct = K.totalApps ? Math.round(K.running/K.totalApps*100) : 0;
   const maxIn = DATA.reuse[0] ? DATA.reuse[0].in : 1;
   // Optional fields (added in build_data v3.6.0). Each card hides when its data is absent,
   // so reports built with an older builder still render.
   const ad = DATA.adoption, cf = DATA.confidence, dc = DATA.deploymentCoverage, rm = DATA.reuseMetrics;
-  const bandBg = {High:'#E7F6EF', Medium:'#FFF3E0', Low:'#FDECEA'}, bandFg = {High:'#0B7A4B', Medium:'#B9770E', Low:'#C0392B'};
+  const bandBg = {High:'var(--ok-bg)', Medium:'var(--warn-bg)', Low:'var(--bad-bg)'}, bandFg = {High:'var(--ok-tx)', Medium:'var(--warn-tx)', Low:'var(--bad-tx)'};
   const confChip = cf ? `<span style="display:inline-block;margin-left:10px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;vertical-align:middle;background:${bandBg[cf.band]};color:${bandFg[cf.band]}">Data confidence: ${cf.band}</span>` : '';
   const confWhy = (cf && cf.reasons.length) ? `<div style="font-size:11px;color:var(--muted);margin-top:8px"><b>Why:</b> ${cf.reasons.map(esc).join(' · ')}</div>` : '';
   const extraCards = [];
   if(ad) extraCards.push(`
     <div class="ins">
-      <h3><span class="ib" style="background:#EEF0FF">${TICO.arch.replace('class="tico"','')}</span>Platform Adoption</h3>
+      <h3><span class="ib" style="background:var(--band)">${TICO.arch.replace('class="tico"','')}</span>Platform Adoption</h3>
       <div class="big">${ad.coveragePct}%</div>
       <p>${ad.clientApps} client application${ad.clientApps===1?'':'s'} consume ${ad.consumedApis} of ${ad.totalApis} API-led APIs: the share of the catalogue in live use by business channels. Reuse shows how interconnected the APIs are; adoption shows how much of the catalogue real consumers use.</p>
       ${ad.expTotal > 0 ? `<p style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)"><b style="color:var(--ink)">Consumer-facing coverage: ${ad.expCoveragePct}%</b>, ${ad.expConsumed} of ${ad.expTotal} Experience APIs consumed by client channels. Process and System APIs serve internal API-led reuse, so this figure often runs higher than overall coverage.</p>` : ''}
     </div>`);
   if(dc){
-    const covColor = dc.coveragePct >= 95 ? 'var(--teal)' : dc.coveragePct >= 85 ? 'var(--indigo)' : '#E6A23C';
+    const covColor = dc.coveragePct >= 95 ? 'var(--ok-tx)' : dc.coveragePct >= 85 ? 'var(--title)' : 'var(--warn-tx)';
     const isoNames = dc.isolatedApps.slice(0,6).map(a=>esc(a.name)).join(', ') + (dc.isolatedApps.length > 6 ? `, +${dc.isolatedApps.length-6} more` : '');
     extraCards.push(`
     <div class="ins">
-      <h3><span class="ib" style="background:#EEF0FF"><svg viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" stroke-width="2"><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="3" fill="var(--indigo)" stroke="none"/></svg></span>Deployment Coverage</h3>
+      <h3><span class="ib" style="background:var(--band)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--title)" stroke-width="2"><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="3" fill="var(--title)" stroke="none"/></svg></span>Deployment Coverage</h3>
       <div class="big" style="color:${covColor}">${dc.coveragePct}%</div>
       <p>${dc.mapped} of ${dc.prodTotal} production apps appear in the dependency graph. ${dc.isolated > 0
         ? `<b>${dc.isolated}</b> ${dc.isolated===1?'is':'are'} deployed with no mapped dependencies (${isoNames}). Check whether they are standalone by design (schedulers, test projects) or no longer needed.`
@@ -734,14 +745,14 @@ function renderIns(){
     const flagged = (ph.singleReplicaBusy.length ? 1 : 0) + (ph.java8.length ? 1 : 0) + (ph.testAppsInProd.length ? 1 : 0);
     extraCards.push(`
     <div class="ins">
-      <h3><span class="ib" style="background:${flagged ? '#FFF3E0' : '#E7F6EF'}"><svg viewBox="0 0 24 24" fill="none" stroke="${flagged ? '#B9770E' : '#0B7A4B'}" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z"/></svg></span>Platform Health</h3>
-      <div class="big" style="color:${flagged ? '#B9770E' : 'var(--teal)'}">${flagged ? `${flagged} to review` : 'Good'}</div>
+      <h3><span class="ib" style="background:${flagged ? 'var(--warn-bg)' : 'var(--ok-bg)'}"><svg viewBox="0 0 24 24" fill="none" stroke="${flagged ? 'var(--warn-tx)' : 'var(--ok-tx)'}" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z"/></svg></span>Platform Health</h3>
+      <div class="big" style="color:${flagged ? 'var(--warn-tx)' : 'var(--ok-tx)'}">${flagged ? `${flagged} to review` : 'Good'}</div>
       ${lines.map(l=>`<p style="margin-top:6px">${l}</p>`).join('')}
     </div>`);
   }
   if(rm) extraCards.push(`
     <div class="ins">
-      <h3><span class="ib" style="background:#EEF0FF">${TICO.reuse.replace('class="tico"','')}</span>Peer-review metrics</h3>
+      <h3><span class="ib" style="background:var(--band)">${TICO.reuse.replace('class="tico"','')}</span>Peer-review metrics</h3>
       <p style="margin-top:2px">The three readings used in MuleSoft peer-review decks, for like-for-like comparison:</p>
       ${[['API-led %', rm.apiLedPct, `APIs with 1+ consumer (${rm.consumedApis}) ÷ all Mule apps (${rm.muleApps})`],
          ['Reuse rate', rm.reuseRate, `Reuse instances (${rm.reuseInstances}) ÷ total consumers (${rm.totalConsumers})`],
@@ -757,12 +768,12 @@ function renderIns(){
   </div>
   <div class="insight-grid">
     <div class="ins">
-      <h3><span class="ib" style="background:#EEF0FF">${TICO.arch.replace('class="tico"','')}</span>APIs Actively Reused</h3>
+      <h3><span class="ib" style="background:var(--band)">${TICO.arch.replace('class="tico"','')}</span>APIs Actively Reused</h3>
       <div class="big">${sharedPct}%</div>
       <p>${sharedApis} of ${muleNodes.length} APIs are called by 2 or more other APIs or consumers — these are your shared platform assets. <span style="font-weight:700;color:${reuseColor}">${reuseLabel}</span> — mature platforms typically reach 40 %+.</p>
     </div>
     <div class="ins">
-      <h3><span class="ib" style="background:#E7F6EF"><svg viewBox="0 0 24 24" fill="none" stroke="#0B7A4B" stroke-width="2"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10z"/><path d="M8 12l3 3 5-5"/></svg></span>Operational Health</h3>
+      <h3><span class="ib" style="background:var(--ok-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--ok-tx)" stroke-width="2"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10z"/><path d="M8 12l3 3 5-5"/></svg></span>Operational Health</h3>
       <div class="big">${healthPct}%</div>
       <p>${K.running} of ${K.totalApps} applications are running. ${(()=>{
         const pr = (DATA.envRows||[]).filter(r=>r.type==='production');
@@ -774,7 +785,7 @@ function renderIns(){
       })()}</p>
     </div>
     <div class="ins">
-      <h3><span class="ib" style="background:#FFF3E0"><svg viewBox="0 0 24 24" fill="none" stroke="#B9770E" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></span>Consumption Governance</h3>
+      <h3><span class="ib" style="background:var(--band)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--title)" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></span>Consumption Governance</h3>
       <div class="big">${DATA.clientApps.length}</div>
       <p>Registered OAuth client applications enforcing client-ID on Experience APIs. Recommend extending with SLA tiers and rate limits in API Manager for fine-grained throttling.</p>
     </div>
@@ -955,7 +966,7 @@ function buildGraph(){
   const tip = document.getElementById('flowtip');
   const countEl = document.getElementById('flowCount');
 
-  const COL_COLOR = {consumer:'#052D60', experience:'#052D60', process:'#0BA49B', system:'#5E66F9', backend:'#7B8794'};
+  const COL_COLOR = {consumer:'#052D60', experience:'#1E64B0', process:'#0BA49B', system:'#5E66F9', backend:'#7B8794'};
   const COL_ORDER = ['consumer','experience','process','system','backend'];
   const NW=210, NH=32, HGAP=72, VGAP=10, PAD=36, HEADER=32;
 
@@ -996,7 +1007,7 @@ function buildGraph(){
   });
 
   // Arrowhead markers. context-stroke isn't supported everywhere, so one marker per state.
-  let html = `<defs>${[['a-base','#B7C6D9'],['a-out','#1E64B0'],['a-in','#C77700']].map(([id,c]) =>
+  let html = `<defs>${[['a-base','#B7C6D9'],['a-out','#1B2733'],['a-in','#C2255C']].map(([id,c]) =>
     `<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">` +
     `<path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`).join('')}</defs>`;
   let totalW, totalH;
@@ -1275,10 +1286,10 @@ function renderReuse(){
 
   // Maturity band from reuse rate
   const rr = ra.reuseRate;
-  const maturity = rr >= 0.50 ? {label:'Mature API-Led',  color:'#0B7A4B', bg:'#E7F6EF', desc:'API-led operating at full scale. Assets are systematically shared and reused across the organisation as business-as-usual.'}
-                : rr >= 0.40 ? {label:'Industrialised',   color:'#028090', bg:'#E0F5F5', desc:'API-led embedded in business-as-usual. Self-service production and consumption model is operationalised.'}
-                : rr >= 0.20 ? {label:'Developing',        color:'#5E66F9', bg:'#EEF0FF', desc:'API-led practices established in core programs. Reuse is growing but not yet systematic across the organisation.'}
-                :              {label:'Incubating',         color:'#B9770E', bg:'#FFF3E0', desc:'API-led practices are in early stages. Most integrations are point-to-point with limited shared-asset reuse.'};
+  const maturity = rr >= 0.50 ? {label:'Mature API-Led',  color:'#052D60', bg:'#E3E9F1', bar:'#052D60', desc:'API-led operating at full scale. Assets are systematically shared and reused across the organisation as business-as-usual.'}
+                : rr >= 0.40 ? {label:'Industrialised',   color:'#405A80', bg:'#EBEFF5', bar:'#405A80', desc:'API-led embedded in business-as-usual. Self-service production and consumption model is operationalised.'}
+                : rr >= 0.20 ? {label:'Developing',        color:'#5A6B82', bg:'#F1F4F8', bar:'#7488A4', desc:'API-led practices established in core programs. Reuse is growing but not yet systematic across the organisation.'}
+                :              {label:'Incubating',         color:'#5A6B82', bg:'#F6F8FA', bar:'#A7B2C1', desc:'API-led practices are in early stages. Most integrations are point-to-point with limited shared-asset reuse.'};
 
   // Benchmark reference values — avg derived from peer set in ANA Industry Data Matrix
   // (falls back to MuleSoft global average of 38% if matrix was unavailable at build time)
@@ -1291,9 +1302,9 @@ function renderReuse(){
   // Donut breakdown values
   const total = ra.apisTotal;
   const segments = [
-    {label:'Multiple consumers', count:ra.consumedMore, color:'var(--teal)',   pctVal: ra.apisTotal ? ra.consumedMore/ra.apisTotal : 0},
-    {label:'Single consumer',    count:ra.consumedOnce, color:'var(--indigo)', pctVal: ra.apisTotal ? ra.consumedOnce/ra.apisTotal : 0},
-    {label:'No consumers yet',   count:ra.consumedNone, color:'#D8E3F0',      pctVal: ra.apisTotal ? ra.consumedNone/ra.apisTotal : 0},
+    {label:'Multiple consumers', count:ra.consumedMore, color:'var(--ord1)',   pctVal: ra.apisTotal ? ra.consumedMore/ra.apisTotal : 0},
+    {label:'Single consumer',    count:ra.consumedOnce, color:'var(--ord2)', pctVal: ra.apisTotal ? ra.consumedOnce/ra.apisTotal : 0},
+    {label:'No consumers yet',   count:ra.consumedNone, color:'var(--ord3)',      pctVal: ra.apisTotal ? ra.consumedNone/ra.apisTotal : 0},
   ];
 
   // SVG donut (simple arc segments)
@@ -1386,7 +1397,7 @@ function renderReuse(){
             {key:'experience', label:'Experience', color:'var(--exp)'},
             {key:'process',    label:'Process',    color:'var(--proc)'},
             {key:'system',     label:'System',     color:'var(--sys)'},
-            {key:'other',      label:'Other',      color:'var(--muted)'},
+            {key:'other',      label:'Other',      color:'var(--oth)'},
           ].filter(d => byLayer[d.key] && byLayer[d.key].total > 0);
 
           if(!layerDefs.length) return '<p style="font-size:11.5px;color:var(--muted)">No layer data available.</p>';
@@ -1404,18 +1415,18 @@ function renderReuse(){
                   <span style="font-size:12px;font-weight:600;color:var(--title)">${d.label}</span>
                   <span style="font-size:11px;color:var(--muted)">${s.total} API${s.total!==1?'s':''}</span>
                 </div>
-                <span style="font-size:11.5px;font-weight:700;color:${d.color}">${pct(s.reuseRate)} reuse</span>
+                <span style="font-size:11.5px;font-weight:700;color:var(--title)">${pct(s.reuseRate)} reuse</span>
               </div>
-              <div style="display:flex;border-radius:99px;overflow:hidden;height:8px;background:var(--line)">
-                ${moreW > 0 ? `<div style="width:${moreW}%;background:var(--teal)" title="${s.more} with 2+ consumers"></div>` : ''}
-                ${onceW > 0 ? `<div style="width:${onceW}%;background:var(--indigo);opacity:.7" title="${s.once} with 1 consumer"></div>` : ''}
-                ${noneW > 0 ? `<div style="width:${noneW}%;background:#D8E3F0" title="${s.none} with no consumers"></div>` : ''}
+              <div style="display:flex;gap:2px;border-radius:99px;overflow:hidden;height:8px;background:var(--line)">
+                ${moreW > 0 ? `<div style="width:${moreW}%;background:var(--ord1)" title="${s.more} with 2+ consumers"></div>` : ''}
+                ${onceW > 0 ? `<div style="width:${onceW}%;background:var(--ord2)" title="${s.once} with 1 consumer"></div>` : ''}
+                ${noneW > 0 ? `<div style="width:${noneW}%;background:var(--ord3)" title="${s.none} with no consumers"></div>` : ''}
               </div>
             </div>`;
           }).join('');
         })()}
         <div style="display:flex;gap:14px;margin-top:10px">
-          ${[['2+ consumers','var(--teal)'],['1 consumer','var(--indigo)'],['No consumers','#D8E3F0']].map(([l,c])=>`
+          ${[['2+ consumers','var(--ord1)'],['1 consumer','var(--ord2)'],['No consumers','var(--ord3)']].map(([l,c])=>`
           <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted)">
             <span style="width:8px;height:8px;border-radius:2px;background:${c};flex-shrink:0"></span>${l}
           </div>`).join('')}
@@ -1449,7 +1460,7 @@ function renderReuse(){
           ].map((r,i) => `
           <tr style="border-bottom:1px solid var(--line);${i%2===0?'background:#FAFBFD':''}">
             <td style="padding:7px 0;font-weight:600;color:var(--title)">${r[0]}</td>
-            <td style="padding:7px 0;text-align:right;font-weight:700;color:var(--teal)">${r[1]}</td>
+            <td style="padding:7px 0;text-align:right;font-weight:700;color:var(--title)">${r[1]}</td>
             <td style="padding:7px 8px;color:var(--muted);font-size:11.5px">${r[2]}</td>
           </tr>`).join('')}
         </tbody>
@@ -1472,7 +1483,7 @@ function renderReuse(){
           <span style="font-size:12px;font-weight:700;color:var(--title)">${pct(rr)}</span>
         </div>
         <div style="background:var(--line);border-radius:99px;height:10px;position:relative">
-          <div style="height:10px;border-radius:99px;background:var(--teal);width:${barPct}%;transition:width .6s"></div>
+          <div style="height:10px;border-radius:99px;background:var(--val);width:${barPct}%;transition:width .6s"></div>
         </div>
       </div>
 
@@ -1483,13 +1494,13 @@ function renderReuse(){
           <span style="font-size:12px;font-weight:700;color:var(--muted)">${pct(BENCH_AVG)}</span>
         </div>
         <div style="background:var(--line);border-radius:99px;height:10px;position:relative">
-          <div style="height:10px;border-radius:99px;background:#CBD5E1;width:${benchAvgPct}%"></div>
+          <div style="height:10px;border-radius:99px;background:var(--ord3);width:${benchAvgPct}%"></div>
         </div>
       </div>
 
       <!-- Maturity stages -->
       <div style="display:flex;gap:0;border-radius:8px;overflow:hidden;margin-bottom:10px">
-        ${[{l:'Incubating',pct:'20%',c:'#E6A23C20',tc:'#B9770E'},{l:'Developing',pct:'40%',c:'#EEF0FF',tc:'#5E66F9'},{l:'Industrialised',pct:'50%',c:'#E0F5F5',tc:'#028090'},{l:'Mature API-Led',pct:'50%+',c:'#E7F6EF',tc:'#0B7A4B'}].map(s=>`
+        ${[{l:'Incubating',pct:'20%',c:'#F6F8FA',tc:'#5A6B82'},{l:'Developing',pct:'40%',c:'#F1F4F8',tc:'#5A6B82'},{l:'Industrialised',pct:'50%',c:'#EBEFF5',tc:'#405A80'},{l:'Mature API-Led',pct:'50%+',c:'#E3E9F1',tc:'#052D60'}].map(s=>`
         <div style="flex:1;padding:8px 6px;background:${s.c};text-align:center">
           <div style="font-size:10px;font-weight:700;color:${s.tc}">${s.l}</div>
           <div style="font-size:10px;color:var(--muted)">&lt;${s.pct}</div>
@@ -1506,10 +1517,10 @@ function renderReuse(){
     const bgs = (DATA.reuseAnalysis || {}).byBG || [];
     if(bgs.length <= 1) return '';   // only show if multiple BGs exist
 
-    const maturityOf = r => r >= 0.50 ? {label:'Mature API-Led',color:'#0B7A4B',bg:'#E7F6EF'}
-                          : r >= 0.40 ? {label:'Industrialised', color:'#028090',bg:'#E0F5F5'}
-                          : r >= 0.20 ? {label:'Developing',     color:'#5E66F9',bg:'#EEF0FF'}
-                          :             {label:'Incubating',     color:'#B9770E',bg:'#FFF3E0'};
+    const maturityOf = r => r >= 0.50 ? {label:'Mature API-Led',color:'#052D60',bg:'#E3E9F1',bar:'#052D60'}
+                          : r >= 0.40 ? {label:'Industrialised', color:'#405A80',bg:'#EBEFF5',bar:'#405A80'}
+                          : r >= 0.20 ? {label:'Developing',     color:'#5A6B82',bg:'#F1F4F8',bar:'#7488A4'}
+                          :             {label:'Incubating',     color:'#5A6B82',bg:'#F6F8FA',bar:'#A7B2C1'};
 
     const bgRows = bgs.map((bg, i) => {
       const m = maturityOf(bg.reuseRate);
@@ -1547,9 +1558,9 @@ function renderReuse(){
             </div>
             <div style="display:flex;align-items:center;gap:8px">
               <div style="flex:1;background:var(--line);border-radius:99px;height:6px">
-                <div style="height:6px;border-radius:99px;background:${m.color};width:${barW}%"></div>
+                <div style="height:6px;border-radius:99px;background:${m.bar};width:${barW}%"></div>
               </div>
-              <span style="font-size:12px;font-weight:700;color:${m.color};flex-shrink:0;min-width:38px;text-align:right">${pct(bg.reuseRate)}</span>
+              <span style="font-size:12px;font-weight:700;color:var(--title);flex-shrink:0;min-width:38px;text-align:right">${pct(bg.reuseRate)}</span>
             </div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;margin-left:8px">
@@ -1651,7 +1662,7 @@ function renderNoConsumers(ra){
     if(!st) return '<span style="color:var(--muted)">—</span>';
     const run = ['RUNNING','STARTED','SCALING'].includes(st);
     return `<span style="font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:99px;${run
-      ? 'background:#E7F6EF;color:#0B7A4B' : 'background:#FDF1E1;color:#9A5B00'}">${esc(st.charAt(0)+st.slice(1).toLowerCase())}</span>`;
+      ? 'background:var(--ok-bg);color:var(--ok-tx)' : 'background:var(--warn-bg);color:var(--warn-tx)'}">${esc(st.charAt(0)+st.slice(1).toLowerCase())}</span>`;
   };
   const row = a => `<tr style="border-top:1px solid var(--line)">
       <td style="padding:7px 8px 7px 0;font-size:12px;font-weight:600;color:var(--title);word-break:break-all">
