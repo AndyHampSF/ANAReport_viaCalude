@@ -263,7 +263,7 @@ class Review:
                     self.int_reached.add(x['target'])
                 elif t and t['kind'] == 'mule':
                     self.int_calls += 1
-        # shared name prefix (e.g. pro-whs-) for compact tiles
+        # shared name prefix (e.g. acme-prd-) for compact tiles
         mule = [n['label'] for n in D['nodes'] if n['kind'] == 'mule']
         pc = Counter(m.group(1) for m in (re.match(r'^([^-]+-[^-]+-)', x) for x in mule) if m)
         top = pc.most_common(1)

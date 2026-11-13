@@ -870,7 +870,7 @@ function layoutCircular(visibleNodes, byCol, COL_ORDER, COL_COLOR, visibleEdges)
   const groups = COL_ORDER.map(c => ({col:c, nodes:[...byCol[c]].sort((a,b)=>a.label.localeCompare(b.label))}))
                           .filter(g => g.nodes.length);
   const N = groups.reduce((t,g)=>t+g.nodes.length, 0) || 1;
-  // Labels: drop a prefix most Mule apps share (e.g. "pro-whs-") and shorten long names in
+  // Labels: drop a prefix most Mule apps share (e.g. "acme-prd-") and shorten long names in
   // the middle so version suffixes (-v1/-v2) stay visible. The full name shows on hover.
   const F = 14;                                               // label font size (viewBox units)
   const mule = visibleNodes.filter(n => n.kind === 'mule'), pc = {};
